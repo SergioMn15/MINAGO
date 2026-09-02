@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Monitoreo</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="assets/css/styles.css" />
+  </head>
+  <body class="app public-app">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Monitoreo en vivo</p>
+        <h1>Monitoreo</h1>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="panel route-sidebar">
+        <div class="route-sidebar-header">
+          <h3>Rutas</h3>
+          <span id="selectedRouteName">Ruta Azul</span>
+        </div>
+        <div id="routeList" class="route-list" aria-label="Listado de rutas"></div>
+      </aside>
+
+      <section class="panel info-panel">
+        <div class="status-row">
+          <span class="status-dot" id="statusDot"></span>
+          <strong id="statusText">Conectando...</strong>
+        </div>
+
+        <div class="data-grid">
+          <div>
+            <span>Unidad</span>
+            <strong id="unitCode">--</strong>
+          </div>
+          <div>
+            <span>Últ. actualización</span>
+            <strong id="lastUpdate">--</strong>
+          </div>
+          <div>
+            <span>Latitud</span>
+            <strong id="latValue">--</strong>
+          </div>
+          <div>
+            <span>Longitud</span>
+            <strong id="lngValue">--</strong>
+          </div>
+        </div>
+
+        <div class="alert hidden" id="alertBanner">
+          La unidad lleva más de 5 minutos sin señal.
+        </div>
+
+        <div class="route-summary">
+          <h3>Horarios habituales</h3>
+          <ul>
+            <li>Salida central: 6:30 AM</li>
+            <li>Salida de regreso: 4:15 PM</li>
+            <li>Frecuencia estimada: 20-30 min</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="map-panel">
+        <div id="map"></div>
+      </section>
+    </main>
+
+    <footer class="public-footer">
+      <a href="login_chofer.html" class="driver-access-link">¿Eres chofer? Inicia sesión</a>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="assets/js/config.js"></script>
+    <script src="assets/js/supabaseClient.js"></script>
+    <script src="assets/js/map.js"></script>
+  </body>
+</html>

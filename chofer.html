@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chofer | VíaMinatitlán</title>
+    <link rel="stylesheet" href="assets/css/styles.css" />
+  </head>
+  <body class="app driver-app">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow" id="choferEyebrow">Panel del chofer</p>
+        <h1 id="choferNombre">Control de ruta</h1>
+      </div>
+      <a class="simple-link" href="index.html">Ver mapa</a>
+    </header>
+
+    <main class="driver-shell">
+      <section class="panel driver-panel">
+        <div class="driver-status">
+          <span class="status-dot" id="driverStatusDot"></span>
+          <strong id="driverStatusText">Sin iniciar</strong>
+        </div>
+
+        <div class="driver-info">
+          <label for="unitCode">Código de unidad</label>
+          <input id="unitCode" type="text" value="BUS-12" />
+        </div>
+
+        <div class="driver-info">
+          <label for="routeSelect">Ruta activa</label>
+          <select id="routeSelect">
+            <option value="Ruta Azul">Ruta Azul</option>
+            <option value="Ruta Amarillo">Ruta Amarillo</option>
+          </select>
+        </div>
+
+        <div class="driver-info">
+          <label for="directionSelect">Sentido</label>
+          <select id="directionSelect">
+            <option value="Minatitlán - Colima">Minatitlán - Colima</option>
+            <option value="Colima - Minatitlán">Colima - Minatitlán</option>
+          </select>
+        </div>
+
+        <div class="driver-actions">
+          <button id="startRouteBtn" class="primary-btn">Iniciar Ruta</button>
+          <button id="stopRouteBtn" class="secondary-btn">Detener Ruta</button>
+          <button id="logoutBtn" class="secondary-btn" type="button">Cerrar sesión</button>
+        </div>
+
+        <div class="driver-metrics">
+          <div>
+            <span>Latitud</span>
+            <strong id="driverLat">--</strong>
+          </div>
+          <div>
+            <span>Longitud</span>
+            <strong id="driverLng">--</strong>
+          </div>
+          <div>
+            <span>Última señal</span>
+            <strong id="driverUpdatedAt">--</strong>
+          </div>
+        </div>
+
+        <div id="driverMessage" class="driver-message">
+          Esperando inicio de la ruta.
+        </div>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="assets/js/config.js"></script>
+    <script src="assets/js/supabaseClient.js"></script>
+    <script src="assets/js/driver.js"></script>
+    <script>
+      (() => {
+        const authorized = sessionStorage.getItem('choferAutorizado') === 'true';
+        const choferNombre = sessionStorage.getItem('choferNombre');
+        const unidadActiva = sessionStorage.getItem('unidadActiva');
+
+        if (!authorized || !choferNombre || !unidadActiva) {
+          window.location.href = 'login_chofer.html';
+          return;
+        }
+
+        // Mostrar nombre del chofer en la cabecera
+        const nombreEl = document.getElementById('choferNombre');
+        const eyebrewEl = document.getElementById('choferEyebrow');
+        if (nombreEl) nombreEl.textContent = choferNombre;
+        if (eyebrewEl) eyebrewEl.textContent = `Bus ${unidadActiva}`;
+
+        // Pre-cargar la unidad activa en el input
+        const unitInput = document.getElementById('unitCode');
+        if (unitInput) {
+          unitInput.value = unidadActiva;
+          unitInput.disabled = true; // No permitir cambiar
+        }
+      })();
+    </script>
+  </body>
+</html>

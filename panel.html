@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Panel privado</title>
+    <link rel="stylesheet" href="assets/css/styles.css" />
+  </head>
+  <body class="app driver-app">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Acceso privado</p>
+        <h1>Control</h1>
+      </div>
+      <a class="simple-link" href="index.html">Mapa público</a>
+    </header>
+
+    <main class="driver-shell">
+      <section class="panel driver-panel">
+        <div class="driver-info">
+          <label for="loginUnitCode">Código de unidad</label>
+          <input id="loginUnitCode" type="text" value="BUS-12" />
+        </div>
+
+        <div class="driver-info">
+          <label for="loginPin">PIN</label>
+          <input id="loginPin" type="password" placeholder="Ingresa tu PIN" />
+        </div>
+
+        <div class="driver-actions">
+          <button id="loginBtn" class="primary-btn" type="button">Entrar al panel</button>
+        </div>
+
+        <div id="loginMessage" class="driver-message">
+          Acceso restringido para la operación del transporte.
+        </div>
+      </section>
+    </main>
+
+    <script src="assets/js/config.js"></script>
+    <script>
+      const loginBtn = document.getElementById('loginBtn');
+      const loginUnitCode = document.getElementById('loginUnitCode');
+      const loginPin = document.getElementById('loginPin');
+      const loginMessage = document.getElementById('loginMessage');
+
+      loginBtn.addEventListener('click', () => {
+        const unit = (loginUnitCode.value || '').trim();
+        const pin = (loginPin.value || '').trim();
+        const credentials = window.VIAMINA_CONFIG.DRIVER_CREDENTIALS || {};
+
+        if (!unit || !pin) {
+          loginMessage.textContent = 'Debes ingresar código y PIN.';
+          return;
+        }
+
+        if (credentials[unit] === pin) {
+          sessionStorage.setItem('choferAutorizado', 'true');
+          sessionStorage.setItem('unidadActiva', unit);
+          window.location.href = 'chofer.html';
+          return;
+        }
+
+        loginMessage.textContent = 'Credenciales inválidas.';
+      });
+    </script>
+  </body>
+</html>
