@@ -1,6 +1,7 @@
 const MINIMUM_SEND_INTERVAL_MS = 10000;
 const MINIMUM_DISTANCE_METERS = 25;
-const MAXIMUM_ACCURACY_METERS = 75;
+// En móviles suele ser menor a 75 m; en laptops puede ser de cientos de metros.
+const MAXIMUM_ACCURACY_METERS = 1500;
 
 const driverState = { watchId: null, isTracking: false, isSending: false, lastSentAt: 0, lastPosition: null };
 
@@ -59,7 +60,8 @@ async function sendLocation({ latitude, longitude, accuracy }) {
     return;
   }
   if (Number.isFinite(accuracy) && accuracy > MAXIMUM_ACCURACY_METERS) {
-    setMessage('Esperando una señal GPS más precisa…');
+    console.warn(`Precisión GPS insuficiente: ${Math.round(accuracy)} m.`);
+    setMessage(`Esperando una señal GPS más precisa (${Math.round(accuracy)} m)…`);
     return;
   }
   if (driverState.isSending || !shouldSendPosition({ latitude, longitude })) return;
