@@ -214,3 +214,104 @@ h1, h2, h3, p { margin: 0; }
   .map-frame-header { gap: 10px; padding: 11px; }
   .map-live-label { padding: 6px 7px; }
 }
+
+/* Mapa en primer plano con panel lateral bajo demanda */
+.public-app { overflow: hidden; }
+.public-app .topbar { min-height: 72px; }
+.public-app .brand-logo { width: 142px; height: 48px; }
+.map-workspace { position: relative; display: block; width: 100%; max-width: none; height: calc(100vh - 72px); margin: 0; padding: 0; }
+.public-app .map-panel { display: block; width: 100%; height: 100%; min-height: 0; border: 0; border-radius: 0; box-shadow: none; }
+.public-app .map-panel #map { min-height: 0; height: 100%; border-radius: 0; }
+.public-app .map-frame-header { display: none; }
+.public-dashboard {
+  position: absolute; z-index: 800; top: 16px; bottom: 16px; left: 16px; width: min(360px, calc(100vw - 32px));
+  overflow-y: auto; overscroll-behavior: contain; border-radius: 23px;
+  transform: translateX(calc(-100% - 32px)); transition: transform .28s cubic-bezier(.2, .8, .2, 1);
+}
+.sidebar-is-open .public-dashboard { transform: translateX(0); }
+.sidebar-toggle {
+  position: absolute; z-index: 700; top: 18px; left: 18px; display: inline-flex; align-items: center; gap: 8px;
+  min-height: 42px; padding: 0 14px; color: var(--ink); background: rgba(255, 255, 255, .94);
+  border: 1px solid rgba(255, 255, 255, .9); border-radius: 12px; box-shadow: 0 8px 20px rgba(21, 60, 67, .16);
+  font-size: .74rem; font-weight: 800; cursor: pointer; backdrop-filter: blur(10px); transition: .2s ease;
+}
+.sidebar-toggle span { color: var(--mint-800); font-size: 1rem; }
+.sidebar-toggle:hover { color: var(--mint-800); transform: translateY(-1px); }
+.sidebar-is-open .sidebar-toggle { opacity: 0; pointer-events: none; transform: translateX(-8px); }
+.sidebar-close {
+  position: absolute; top: 14px; right: 14px; display: grid; width: 30px; height: 30px; place-items: center;
+  color: #fff; background: rgba(255, 255, 255, .13); border: 1px solid rgba(255, 255, 255, .2); border-radius: 9px;
+  font-size: 1.25rem; line-height: 1; cursor: pointer;
+}
+.sidebar-close:hover { background: rgba(255, 255, 255, .23); }
+.public-dashboard .public-intro { padding-right: 32px; }
+.public-footer { display: none; }
+
+@media (max-width: 820px) {
+  .public-app .topbar { min-height: 64px; }
+  .public-app .brand-logo { width: 122px; height: 42px; }
+  .map-workspace { height: calc(100vh - 64px); }
+  .public-dashboard { top: 12px; right: 12px; bottom: 12px; left: 12px; width: auto; transform: translateX(calc(-100% - 24px)); }
+  .sidebar-toggle { top: 12px; left: 12px; }
+}
+
+/* Navegación y panel de rutas: variante inspirada en un visor de transporte */
+.public-app .topbar {
+  min-height: 84px; padding: 10px clamp(18px, 4vw, 58px); color: #fff; border: 0;
+  background-color: var(--mint-800);
+  background-image: linear-gradient(135deg, rgba(121,232,209,.13) 25%, transparent 25%), linear-gradient(225deg, rgba(255,255,255,.07) 25%, transparent 25%), linear-gradient(45deg, rgba(0,0,0,.07) 25%, transparent 25%), linear-gradient(315deg, rgba(121,232,209,.12) 25%, var(--mint-800) 25%);
+  background-position: 0 0, 34px 0, 34px -34px, 0 34px; background-size: 68px 68px;
+}
+.public-app .brand { padding-right: 24px; }
+.public-app .brand-logo { width: 166px; height: 58px; padding: 3px 7px; background: #fff; border-radius: 9px; mix-blend-mode: normal; }
+.public-app .brand-copy { border-color: rgba(255,255,255,.25); }
+.public-app .brand-copy .eyebrow { color: var(--mint-100); }
+.public-app .brand-copy .page-title { color: #fff; }
+.header-nav { display: flex; align-self: stretch; align-items: center; gap: 4px; margin-left: auto; }
+.nav-link { display: inline-grid; min-height: 52px; place-items: center; padding: 0 19px; color: rgba(255,255,255,.88); background: transparent; border: 0; font-size: .8rem; font-weight: 800; text-decoration: none; cursor: pointer; }
+.nav-link:hover, .nav-link.is-active { color: var(--mint-800); background: #fff; }
+.public-app .simple-link { margin-left: 8px; color: #fff; border-color: rgba(255,255,255,.42); }
+.public-app .simple-link:hover { color: var(--mint-800); background: #fff; border-color: #fff; }
+
+.map-workspace { height: auto; min-height: 0; }
+.public-app .map-panel { position: fixed; z-index: 1; top: 84px; right: 0; bottom: 0; left: 0; height: auto; min-height: 0; }
+.public-app .map-panel #map { height: 100%; min-height: 100%; }
+.public-dashboard { z-index: 900; top: 100px; bottom: 18px; min-height: 0; padding: 0; color: var(--text); background: #f6f8f7; border: 1px solid #d8e1df; border-radius: 0 0 17px 17px; box-shadow: 8px 8px 22px rgba(18, 54, 52, .2); }
+.public-dashboard::after { display: none; }
+.public-dashboard .public-intro { position: relative; padding: 20px 52px 18px 22px; color: #fff; background: linear-gradient(135deg, var(--ink), #277d69); }
+.public-dashboard .section-kicker { color: var(--mint-100); }
+.public-dashboard .section-title { color: #fff; font-size: 1.42rem; letter-spacing: -.05em; }
+.public-dashboard .public-intro > p:last-child { margin-top: 7px; color: rgba(255,255,255,.72); font-size: .71rem; line-height: 1.45; }
+.public-dashboard .live-card { margin: 14px 18px; padding: 13px; border-radius: 8px; box-shadow: none; border: 1px solid var(--line); }
+.public-dashboard .route-sidebar { padding: 7px 18px 0; }
+.public-dashboard .route-sidebar-header { padding: 10px 12px; margin: 0; background: var(--ink); border-radius: 8px 8px 0 0; }
+.public-dashboard .route-sidebar-header h3, .public-dashboard .route-sidebar-header span { color: #fff; }
+.public-dashboard .route-list { max-height: 250px; padding: 10px; overflow-y: auto; background: #fff; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 8px 8px; }
+.public-dashboard .route-option { color: var(--ink); background: #fff; border-color: #cfdfdb; border-radius: 7px; }
+.public-dashboard .route-option:hover, .public-dashboard .route-option.is-active { color: var(--mint-800); background: #effbf7; border-color: var(--mint-600); }
+.public-dashboard .travel-note { margin: 17px 18px 0; padding: 13px; border: 0; border-radius: 8px; color: var(--text); background: #e7f6f0; }
+.travel-note p { color: #668078; }
+.public-dashboard .route-summary { margin: 17px 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.public-dashboard .route-summary h3 { color: var(--ink); }
+.public-dashboard .route-summary ul { color: var(--muted); }
+.public-dashboard .route-summary li::before { color: var(--mint-600); }
+.sidebar-close { top: 11px; right: 11px; color: #fff; background: rgba(255,255,255,.12); }
+.sidebar-close span { display: block; transform: translateY(-1px); font-size: 1.45rem; font-weight: 400; line-height: 1; }
+.public-dashboard { scrollbar-color: rgba(39, 125, 105, .65) transparent; scrollbar-width: thin; }
+.public-dashboard::-webkit-scrollbar { width: 8px; }
+.public-dashboard::-webkit-scrollbar-track { background: transparent; }
+.public-dashboard::-webkit-scrollbar-thumb { background: rgba(39, 125, 105, .65); border: 2px solid #f6f8f7; border-radius: 99px; }
+.sidebar-toggle { z-index: 850; top: 102px; left: 0; min-height: 58px; padding: 0 14px; border-radius: 0 9px 9px 0; }
+
+@media (max-width: 820px) {
+  .public-app .topbar { min-height: 70px; }
+  .public-app .brand { padding-right: 0; }
+  .public-app .brand-copy { display: none; }
+  .public-app .brand-logo { width: 128px; height: 46px; }
+  .header-nav { gap: 0; }
+  .nav-link { min-height: 42px; padding: 0 10px; font-size: .68rem; }
+  .public-app .simple-link { margin-left: 3px; padding: 8px 9px; font-size: .62rem; }
+  .public-app .map-panel { top: 70px; }
+  .public-dashboard { top: 86px; }
+  .sidebar-toggle { top: 88px; }
+}

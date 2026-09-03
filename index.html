@@ -15,15 +15,26 @@
         <img class="brand-logo" src="assets/img/logo.jpg" alt="MinaGo Monitoreo de Ruta" />
         <div class="brand-copy"><p class="eyebrow">Movilidad conectada</p><p class="page-title">Monitoreo en vivo</p></div>
       </a>
-      <a class="simple-link" href="login_chofer.html">Acceso chofer</a>
+      <nav class="header-nav" aria-label="Navegación principal">
+        <a class="nav-link is-active" href="index.html">Inicio</a>
+        <button class="nav-link" id="headerRoutes" type="button">Rutas</button>
+        <a class="simple-link" href="login_chofer.html">Acceso chofer</a>
+      </nav>
     </header>
 
     <main class="map-workspace">
-      <aside class="dashboard-panel public-dashboard" aria-label="Rutas y estado de servicio">
+      <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-controls="routePanel" aria-expanded="false">
+        <span aria-hidden="true">☰</span> Rutas
+      </button>
+
+      <aside class="dashboard-panel public-dashboard" id="routePanel" aria-label="Rutas y estado de servicio">
         <div class="public-intro">
-          <p class="section-kicker">Muévete con certeza</p>
-          <h1 class="section-title">Tu ciudad,<br /><em>más cerca.</em></h1>
-          <p>Consulta el recorrido activo y planea tu siguiente viaje con información en vivo.</p>
+          <button class="sidebar-close" id="sidebarClose" type="button" aria-label="Cerrar panel" title="Cerrar panel">
+            <span aria-hidden="true">×</span>
+          </button>
+          <p class="section-kicker">MinaGo · Monitoreo de ruta</p>
+          <h1 class="section-title">Rutas disponibles</h1>
+          <p>Consulta los recorridos activos en el mapa.</p>
         </div>
 
         <section class="live-card" aria-live="polite">
@@ -49,19 +60,31 @@
       </aside>
 
       <section class="map-panel" aria-label="Mapa de unidades en ruta">
-        <div class="map-frame-header">
-          <div><p class="section-kicker">Mapa interactivo</p><h2>Recorridos MinaGo</h2></div>
-          <span class="map-live-label"><i></i> En vivo</span>
-        </div>
         <div id="map"></div>
       </section>
     </main>
 
-    <footer class="public-footer"><a href="login_chofer.html" class="driver-access-link">¿Eres chofer? Inicia sesión</a></footer>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="assets/js/config.js"></script>
     <script src="assets/js/supabaseClient.js"></script>
     <script src="assets/js/map.js"></script>
+    <script>
+      (() => {
+        const panel = document.getElementById('routePanel');
+        const toggle = document.getElementById('sidebarToggle');
+        const close = document.getElementById('sidebarClose');
+        const headerRoutes = document.getElementById('headerRoutes');
+        const setPanel = (isOpen) => {
+          document.body.classList.toggle('sidebar-is-open', isOpen);
+          toggle.setAttribute('aria-expanded', String(isOpen));
+          window.setTimeout(() => window.dispatchEvent(new Event('resize')), 250);
+        };
+        toggle.addEventListener('click', () => setPanel(!document.body.classList.contains('sidebar-is-open')));
+        close.addEventListener('click', () => setPanel(false));
+        headerRoutes.addEventListener('click', () => setPanel(true));
+        document.addEventListener('keydown', (event) => { if (event.key === 'Escape') setPanel(false); });
+      })();
+    </script>
   </body>
 </html>
