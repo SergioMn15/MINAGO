@@ -6,10 +6,7 @@ window.VIAMINA_CONFIG = {
   ROUTES: [
     { name: "Ruta Azul", color: "#1d4ed8", file: "./rutaazul.geojson" },
     { name: "Ruta Amarillo", color: "#f59e0b", file: "./rutaamarillo.geojson" }
-  ],
-  DRIVER_CREDENTIALS: {
-    "BUS-12": "1234"
-  }
+  ]
 };
 
 // Nota: la clave secreta del proyecto NO debe exponerse en el frontend.

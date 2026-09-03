@@ -1,281 +1,161 @@
-console.log('[driver] Script cargado. Verificando estado del navegador...');
+const MINIMUM_SEND_INTERVAL_MS = 10000;
+const MINIMUM_DISTANCE_METERS = 25;
+const MAXIMUM_ACCURACY_METERS = 75;
 
-window.addEventListener('error', (event) => {
-  console.error('[driver] Error global JS:', event.message, event.error || event);
-});
+const driverState = { watchId: null, isTracking: false, isSending: false, lastSentAt: 0, lastPosition: null };
 
-window.addEventListener('unhandledrejection', (event) => {
-  console.error('[driver] Promise rechazada no manejada:', event.reason);
-});
+function setMessage(message) {
+  const element = document.getElementById('driverMessage');
+  if (element) element.textContent = message;
+}
 
-const driverState = {
-  watchId: null,
-  isTracking: false
-};
-
-function status(live) {
-  const driverStatusDot = document.getElementById('driverStatusDot');
-  const driverStatusText = document.getElementById('driverStatusText');
-  if (!driverStatusDot || !driverStatusText) return;
-
-  driverStatusDot.classList.toggle('live', live);
-  driverStatusDot.classList.toggle('offline', !live);
-  driverStatusText.textContent = live ? 'Transmitiendo' : 'Sin iniciar';
+function status(live, text = live ? 'Transmitiendo' : 'Sin iniciar') {
+  const dot = document.getElementById('driverStatusDot');
+  const label = document.getElementById('driverStatusText');
+  if (dot) {
+    dot.classList.toggle('live', live);
+    dot.classList.toggle('offline', !live);
+  }
+  if (label) label.textContent = text;
 }
 
 function updateDriverMetrics({ lat, lng, timestamp }) {
-  const driverLat = document.getElementById('driverLat');
-  const driverLng = document.getElementById('driverLng');
-  const driverUpdatedAt = document.getElementById('driverUpdatedAt');
-
-  if (!driverLat || !driverLng || !driverUpdatedAt) return;
-
-  driverLat.textContent = lat.toFixed(5);
-  driverLng.textContent = lng.toFixed(5);
-  driverUpdatedAt.textContent = new Date(timestamp).toLocaleTimeString('es-MX', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
+  document.getElementById('driverLat').textContent = lat.toFixed(5);
+  document.getElementById('driverLng').textContent = lng.toFixed(5);
+  document.getElementById('driverUpdatedAt').textContent = new Date(timestamp).toLocaleTimeString('es-MX', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
   });
 }
 
-async function sendLocation({ latitude, longitude }) {
-  const unitCodeInput = document.getElementById('unitCode');
-  const driverMessage = document.getElementById('driverMessage');
-  const { UNIT_CODE } = window.VIAMINA_CONFIG;
-  const routeName = sessionStorage.getItem('rutaActiva') || window.VIAMINA_CONFIG.DEFAULT_ROUTE || 'Ruta Azul';
-  const directionSelect = document.getElementById('directionSelect');
-  const sentido = directionSelect ? directionSelect.value : 'Minatitlán - Colima';
+function distanceInMeters(from, to) {
+  const radians = (value) => (value * Math.PI) / 180;
+  const earthRadius = 6371000;
+  const deltaLat = radians(to.latitude - from.latitude);
+  const deltaLng = radians(to.longitude - from.longitude);
+  const a = Math.sin(deltaLat / 2) ** 2 + Math.cos(radians(from.latitude)) * Math.cos(radians(to.latitude)) * Math.sin(deltaLng / 2) ** 2;
+  return earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
-  const payload = {
-    codigo_unidad: (unitCodeInput && unitCodeInput.value) || UNIT_CODE,
-    latitud: latitude,
-    longitud: longitude,
-    en_ruta: true,
-    ruta_actual: routeName,
-    sentido,
-    color_ruta: routeName === 'Ruta Amarillo' ? '#f59e0b' : '#1d4ed8',
-    ultima_actualizacion: new Date().toISOString()
+function shouldSendPosition(position) {
+  if (!driverState.lastPosition) return true;
+  return Date.now() - driverState.lastSentAt >= MINIMUM_SEND_INTERVAL_MS
+    || distanceInMeters(driverState.lastPosition, position) >= MINIMUM_DISTANCE_METERS;
+}
+
+function getSessionToken() {
+  return sessionStorage.getItem('choferSessionToken');
+}
+
+function getRouteData() {
+  return {
+    routeName: sessionStorage.getItem('rutaActiva') || window.VIAMINA_CONFIG.DEFAULT_ROUTE || 'Ruta Azul',
+    direction: document.getElementById('directionSelect')?.value || 'Minatitlán - Colima'
   };
+}
 
-  console.log('[driver] Enviando ubicación:', payload);
+async function sendLocation({ latitude, longitude, accuracy }) {
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+    setMessage('La ubicación recibida no es válida.');
+    return;
+  }
+  if (Number.isFinite(accuracy) && accuracy > MAXIMUM_ACCURACY_METERS) {
+    setMessage('Esperando una señal GPS más precisa…');
+    return;
+  }
+  if (driverState.isSending || !shouldSendPosition({ latitude, longitude })) return;
 
+  const sessionToken = getSessionToken();
+  if (!sessionToken) {
+    await stopTracking();
+    setMessage('Tu sesión expiró. Inicia sesión nuevamente.');
+    return;
+  }
+
+  const { routeName, direction } = getRouteData();
+  const timestamp = new Date().toISOString();
+  driverState.isSending = true;
   try {
-    const { error } = await window.viaminaSupabase.from('unidades_transporte').upsert(payload, {
-      onConflict: 'codigo_unidad'
+    const { error } = await window.viaminaSupabase.rpc('update_driver_location', {
+      p_session_token: sessionToken,
+      p_latitud: latitude,
+      p_longitud: longitude,
+      p_ruta_actual: routeName,
+      p_sentido: direction
     });
-
     if (error) {
-      console.error('[driver] Error al enviar posición a Supabase:', error);
-      if (driverMessage) driverMessage.textContent = 'Error al enviar la ubicación al servidor.';
+      console.error('No se pudo enviar la ubicación:', error);
+      setMessage('No se pudo enviar la ubicación. Revisa tu conexión o inicia sesión de nuevo.');
       return;
     }
-
-    updateDriverMetrics({
-      lat: latitude,
-      lng: longitude,
-      timestamp: payload.ultima_actualizacion
-    });
-
-    if (driverMessage) driverMessage.textContent = 'Ubicación enviada correctamente.';
-    console.log('[driver] Posición enviada correctamente a Supabase.');
-  } catch (err) {
-    console.error('[driver] Excepción al enviar ubicación:', err);
-    if (driverMessage) driverMessage.textContent = 'No se pudo enviar la ubicación por un error inesperado.';
+    driverState.lastSentAt = Date.now();
+    driverState.lastPosition = { latitude, longitude };
+    updateDriverMetrics({ lat: latitude, lng: longitude, timestamp });
+    setMessage('Ubicación enviada correctamente.');
+  } finally {
+    driverState.isSending = false;
   }
 }
 
 function startTracking() {
-  const driverMessage = document.getElementById('driverMessage');
-  console.log('[driver] Click en Iniciar Ruta detectado.');
-  console.log('[driver] Iniciando ruta. Contexto:', {
-    hostname: window.location.hostname,
-    protocol: window.location.protocol,
-    isSecureContext: window.isSecureContext,
-    userAgent: navigator.userAgent
-  });
-
-  if (!window.VIAMINA_CONFIG) {
-    console.error('[driver] FALTA window.VIAMINA_CONFIG. Revisa config.js');
-    return;
+  if (!navigator.geolocation) return setMessage('Este navegador no soporta geolocalización.');
+  if (!window.isSecureContext && !['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)) {
+    return setMessage('La geolocalización requiere HTTPS o localhost.');
   }
-
-  if (!window.viaminaSupabase) {
-    console.error('[driver] Supabase no está inicializado. Revisa supabaseClient.js');
-    return;
-  }
-
-  if (!navigator.geolocation) {
-    console.error('[driver] Geolocalización no soportada por este navegador.');
-    if (driverMessage) driverMessage.textContent = 'Este navegador no soporta geolocalización.';
-    return;
-  }
-
-  const isLocalHost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
-  if (!window.isSecureContext && !isLocalHost) {
-    console.warn('[driver] Contexto no seguro para geolocalización:', {
-      protocol: window.location.protocol,
-      hostname: window.location.hostname,
-      isSecureContext: window.isSecureContext
-    });
-    if (driverMessage) driverMessage.textContent = 'La geolocalización solo funciona desde HTTPS o localhost. Abre la app en http://localhost o con HTTPS para iniciar la ruta.';
-    status(false);
-    return;
-  }
-
-  if (driverState.isTracking) {
-    console.log('[driver] Ya se está rastreando la ubicación.');
-    return;
-  }
+  if (driverState.isTracking) return;
 
   driverState.isTracking = true;
-  status(true);
-  if (driverMessage) driverMessage.textContent = 'Solicitando permiso de ubicación...';
-  console.log('[driver] Solicitando permiso de geolocalización...');
-
+  status(true, 'Buscando ubicación');
+  setMessage('Solicitando permiso de ubicación…');
   driverState.watchId = navigator.geolocation.watchPosition(
-    async (position) => {
-      const { latitude, longitude } = position.coords;
-      console.log('[driver] Posición recibida:', position.coords);
-      await sendLocation({ latitude, longitude });
-    },
+    ({ coords }) => sendLocation(coords),
     (error) => {
-      console.error('[driver] GPS error:', error);
       driverState.isTracking = false;
-      status(false);
-
-      if (error.code === error.PERMISSION_DENIED) {
-        console.warn('[driver] Permiso de ubicación denegado por el usuario.');
-        if (driverMessage) driverMessage.textContent = 'Se negó el permiso de ubicación. Acepta la solicitud o habilita la ubicación del navegador.';
-        return;
-      }
-
-      console.error('[driver] Otro error de geolocalización:', {
-        code: error.code,
-        message: error.message
-      });
-      if (driverMessage) driverMessage.textContent = 'No se pudo acceder a la ubicación GPS. Revisa los permisos.';
+      status(false, 'GPS no disponible');
+      setMessage(error.code === error.PERMISSION_DENIED ? 'Se negó el permiso de ubicación.' : 'No se pudo obtener ubicación GPS.');
     },
-    {
-      enableHighAccuracy: true,
-      maximumAge: 5000,
-      timeout: 15000
-    }
+    { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
   );
-
-  console.log('[driver] watchPosition registrado con ID:', driverState.watchId);
 }
 
 async function stopTracking() {
-  const driverMessage = document.getElementById('driverMessage');
-  console.log('[driver] Click en Detener Ruta detectado.');
-
-  if (driverState.watchId) {
-    navigator.geolocation.clearWatch(driverState.watchId);
-    driverState.watchId = null;
-  }
-
+  if (driverState.watchId !== null) navigator.geolocation.clearWatch(driverState.watchId);
+  driverState.watchId = null;
   driverState.isTracking = false;
   status(false);
-  if (driverMessage) driverMessage.textContent = 'Ruta detenida. Se marcó la unidad como fuera de servicio.';
-
-  const routeName = sessionStorage.getItem('rutaActiva') || window.VIAMINA_CONFIG.DEFAULT_ROUTE || 'Ruta Azul';
-  const directionSelect = document.getElementById('directionSelect');
-  const sentido = directionSelect ? directionSelect.value : 'Minatitlán - Colima';
-  const payload = {
-    codigo_unidad: (document.getElementById('unitCode') && document.getElementById('unitCode').value) || window.VIAMINA_CONFIG.UNIT_CODE,
-    en_ruta: false,
-    ruta_actual: routeName,
-    sentido,
-    color_ruta: routeName === 'Ruta Amarillo' ? '#f59e0b' : '#1d4ed8',
-    ultima_actualizacion: new Date().toISOString()
-  };
-
-  console.log('[driver] Marcando unidad como fuera de servicio:', payload);
-
-  try {
-    const { error } = await window.viaminaSupabase.from('unidades_transporte').upsert(payload, {
-      onConflict: 'codigo_unidad'
-    });
-
-    if (error) {
-      console.error('[driver] Error al detener la ruta en Supabase:', error);
-    } else {
-      console.log('[driver] Ruta detenida correctamente en Supabase.');
-    }
-  } catch (err) {
-    console.error('[driver] Excepción al detener la ruta:', err);
-  }
+  const sessionToken = getSessionToken();
+  if (!sessionToken) return;
+  const { routeName, direction } = getRouteData();
+  const { error } = await window.viaminaSupabase.rpc('stop_driver_route', {
+    p_session_token: sessionToken, p_ruta_actual: routeName, p_sentido: direction
+  });
+  setMessage(error ? 'La ruta se detuvo localmente, pero no se pudo actualizar el servidor.' : 'Ruta detenida. La unidad quedó fuera de servicio.');
 }
 
-function bindDriverControls() {
-  const startRouteBtn = document.getElementById('startRouteBtn');
-  const stopRouteBtn = document.getElementById('stopRouteBtn');
-  const logoutBtn = document.getElementById('logoutBtn');
-  const routeSelect = document.getElementById('routeSelect');
-  const directionSelect = document.getElementById('directionSelect');
-
-  if (!startRouteBtn || !stopRouteBtn) {
-    console.error('[driver] No se encontraron los botones de la ruta.');
-    return;
-  }
-
-  window.viaminaStartRoute = startTracking;
-  window.viaminaStopRoute = stopTracking;
-
-  if (routeSelect) {
-    const savedRoute = sessionStorage.getItem('rutaActiva') || window.VIAMINA_CONFIG.DEFAULT_ROUTE || 'Ruta Azul';
-    routeSelect.value = savedRoute;
-    routeSelect.addEventListener('change', (event) => {
-      const selectedRoute = event.target.value;
-      sessionStorage.setItem('rutaActiva', selectedRoute);
-      console.log('[driver] Ruta seleccionada por chofer:', selectedRoute);
-    });
-  }
-
-  if (directionSelect) {
-    const savedDirection = sessionStorage.getItem('sentidoRuta') || 'Minatitlán - Colima';
-    directionSelect.value = savedDirection;
-    directionSelect.addEventListener('change', (event) => {
-      const selectedDirection = event.target.value;
-      sessionStorage.setItem('sentidoRuta', selectedDirection);
-      console.log('[driver] Sentido seleccionado por chofer:', selectedDirection);
-    });
-  }
-
-  startRouteBtn.addEventListener('click', startTracking);
-  stopRouteBtn.addEventListener('click', stopTracking);
-
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
-      sessionStorage.removeItem('choferAutorizado');
-      sessionStorage.removeItem('unidadActiva');
-      sessionStorage.removeItem('rutaActiva');
-      window.location.href = 'panel.html';
-    });
-  }
-
-  console.log('[driver] Listeners activos.');
+async function logout() {
+  await stopTracking();
+  const sessionToken = getSessionToken();
+  if (sessionToken) await window.viaminaSupabase.rpc('logout_driver', { p_session_token: sessionToken });
+  ['choferAutorizado', 'choferNombre', 'choferId', 'unidadActiva', 'rutaActiva', 'sentidoRuta', 'choferSessionToken'].forEach((key) => sessionStorage.removeItem(key));
+  window.location.href = 'login_chofer.html';
 }
 
 function initDriverPage() {
-  const isAuthorized = sessionStorage.getItem('choferAutorizado') === 'true';
-  if (!isAuthorized) {
-    window.location.href = 'panel.html';
+  if (sessionStorage.getItem('choferAutorizado') !== 'true' || !getSessionToken()) {
+    window.location.href = 'login_chofer.html';
     return;
   }
-
-  if (!window.VIAMINA_CONFIG) {
-    console.error('[driver] FALTA window.VIAMINA_CONFIG. Revisa config.js');
-    return;
-  }
-
-  if (!window.viaminaSupabase) {
-    console.error('[driver] Supabase no está inicializado. Revisa supabaseClient.js');
-    return;
-  }
-
-  bindDriverControls();
+  const routeSelect = document.getElementById('routeSelect');
+  const directionSelect = document.getElementById('directionSelect');
+  routeSelect.value = sessionStorage.getItem('rutaActiva') || window.VIAMINA_CONFIG.DEFAULT_ROUTE;
+  directionSelect.value = sessionStorage.getItem('sentidoRuta') || directionSelect.value;
+  routeSelect.addEventListener('change', (event) => sessionStorage.setItem('rutaActiva', event.target.value));
+  directionSelect.addEventListener('change', (event) => sessionStorage.setItem('sentidoRuta', event.target.value));
+  document.getElementById('startRouteBtn').addEventListener('click', startTracking);
+  document.getElementById('stopRouteBtn').addEventListener('click', stopTracking);
+  document.getElementById('logoutBtn').addEventListener('click', logout);
+  window.addEventListener('beforeunload', () => {
+    if (driverState.watchId !== null) navigator.geolocation.clearWatch(driverState.watchId);
+  });
   status(false);
 }
 

@@ -34,7 +34,13 @@ node --check "c:/MINAGO/assets/js/driver.js" # ✅ PASS
 - Haz clic en "Run"
 - Debe completarse sin errores
 
-### 4) Verifica la estructura
+### 4) Aplica el endurecimiento de seguridad
+- Ejecuta después [sql_security_hardening.sql](sql_security_hardening.sql).
+- Conserva los usuarios demo actuales, pero el navegador ya no puede leer perfiles, asignaciones ni contraseñas directamente.
+- Esta migración añade sesión temporal, actualización de ubicación controlada e historial de recorridos/posiciones.
+- El frontend actualizado requiere estas funciones RPC: `authenticate_driver`, `update_driver_location`, `stop_driver_route` y `logout_driver`.
+
+### 5) Verifica la estructura
 En SQL Editor, ejecuta:
 ```sql
 SELECT column_name, data_type

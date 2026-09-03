@@ -203,6 +203,7 @@
       <div class="demo-hint">
           <strong>Demo:</strong> Usuario: juan | Contraseña: password123<br>
           También: maria/password456, carlos/password789
+      </div>
 
       <div class="back-link">
         <a href="index.html">← Volver al mapa público</a>
@@ -232,13 +233,10 @@
         submitBtn.textContent = 'Validando...';
 
         try {
-          // Consultar chofer en Supabase
-          const { data: choferes, error } = await window.viaminaSupabase
-            .from('choferes')
-            .select('id, usuario, nombre, apellido, contraseña_hash, activo')
-            .eq('usuario', usuario)
-            .eq('activo', true)
-            .maybeSingle();
+          const { data: loginData, error } = await window.viaminaSupabase.rpc('authenticate_driver', {
+            p_usuario: usuario,
+            p_contrasena: contraseña
+          });
 
           if (error) {
             console.error('Error al consultar chofer:', error);
@@ -248,40 +246,20 @@
             return;
           }
 
-          if (!choferes) {
+          const chofer = Array.isArray(loginData) ? loginData[0] : loginData;
+          if (!chofer || !chofer.session_token) {
             showMessage('Usuario o contraseña incorrectos', 'error');
             submitBtn.disabled = false;
             submitBtn.textContent = 'Iniciar Sesión';
             return;
           }
 
-          // Validar contraseña (nota: en este MVP comparamos directamente)
-          // EN PRODUCCIÓN: usa bcrypt.compare() en el backend
-          if (choferes.contraseña_hash !== contraseña) {
-            showMessage('Usuario o contraseña incorrectos', 'error');
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Iniciar Sesión';
-            return;
-          }
-
-          // Obtener unidades asignadas al chofer
-          const { data: asignaciones, error: errorAsig } = await window.viaminaSupabase
-            .from('chofer_unidad_asignacion')
-            .select('codigo_unidad')
-            .eq('chofer_id', choferes.id);
-
-          if (errorAsig || !asignaciones || asignaciones.length === 0) {
-            showMessage('No tienes unidades asignadas', 'error');
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Iniciar Sesión';
-            return;
-          }
-
-          // Guardar en sessionStorage
+          // La sesión temporal autoriza las RPC de ubicación; nunca se expone la contraseña.
           sessionStorage.setItem('choferAutorizado', 'true');
-          sessionStorage.setItem('choferNombre', `${choferes.nombre} ${choferes.apellido}`);
-          sessionStorage.setItem('choferId', choferes.id);
-          sessionStorage.setItem('unidadActiva', asignaciones[0].codigo_unidad);
+          sessionStorage.setItem('choferNombre', chofer.nombre_completo);
+          sessionStorage.setItem('choferId', chofer.chofer_id);
+          sessionStorage.setItem('unidadActiva', chofer.codigo_unidad);
+          sessionStorage.setItem('choferSessionToken', chofer.session_token);
 
           showMessage('Inicio de sesión exitoso. Redirigiendo...', 'success');
 

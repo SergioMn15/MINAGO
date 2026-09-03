@@ -174,7 +174,7 @@
 
   const getPopupHtml = (data = {}) => {
     const unitCode = data.codigo_unidad || UNIT_CODE;
-    const routeName = getRouteLabel(data.ruta_actual || sessionStorage.getItem('rutaActiva') || activeRoute || DEFAULT_ROUTE || 'Ruta Azul');
+    const routeName = getRouteLabel(data.ruta_actual || busAssignedRoute || displayRoute || DEFAULT_ROUTE || 'Ruta Azul');
     const routeColor = data.color_ruta || routeCatalog[routeName]?.color || '#1d4ed8';
     const timestamp = data.ultima_actualizacion || new Date().toISOString();
     const formattedTime = formatTime(timestamp);
@@ -182,13 +182,17 @@
 
     return `
       <div style="padding: 8px; font-size: 13px;">
-        <strong>Unidad ${unitCode}</strong><br>
-        <span style="color:${routeColor}; font-weight:700; font-size: 14px;">${routeName}</span><br>
-        <span style="color: #666; margin-top: 4px; display: block;"><strong>Sentido:</strong> ${sentido}</span>
+        <strong>Unidad ${escapeHtml(unitCode)}</strong><br>
+        <span style="color:${escapeHtml(routeColor)}; font-weight:700; font-size: 14px;">${escapeHtml(routeName)}</span><br>
+        <span style="color: #666; margin-top: 4px; display: block;"><strong>Sentido:</strong> ${escapeHtml(sentido)}</span>
         <span style="color: #999; font-size: 12px; margin-top: 4px; display: block;">Últ. actualización: ${formattedTime}</span>
       </div>
     `;
   };
+
+  const escapeHtml = (value) => String(value ?? '').replace(/[&<>'\"]/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+  })[character]);
 
   const setBusVisibility = (unitCode, isVisible) => {
     const marker = busMarkersByUnit[unitCode] || null;

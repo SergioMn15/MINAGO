@@ -27,6 +27,11 @@
 - Inserta 3 choferes de ejemplo
 - Asigna cada chofer a una unidad
 
+**Tercero:** `sql_security_hardening.sql`
+- Conserva las credenciales de práctica, pero evita exponerlas al cliente.
+- Crea sesiones temporales e historial de rutas/ubicaciones.
+- Es obligatorio para el frontend actual.
+
 ---
 
 ## 🚀 Flujo de login nuevo
@@ -36,7 +41,7 @@
 3. **Completa formulario:**
    - Usuario: `juan`
    - Contraseña: `password123` (la que hayas configurado)
-4. **Sistema valida contra `choferes` en Supabase**
+4. **Sistema valida mediante una función controlada de Supabase**
 5. **Si es correcto:**
    - Guarda en sessionStorage: nombre, ID, unidad asignada
    - Redirige a `chofer.html`
@@ -85,9 +90,10 @@ WHERE usuario = 'juan';
 
 ## 🛡️ Seguridad (IMPORTANTE para PRODUCCIÓN)
 
-**En este MVP:**
-- Las contraseñas se comparan como texto plano
-- **NUNCA HAGAS ESTO EN PRODUCCIÓN**
+**En este entorno de práctica:**
+- Las contraseñas de demostración se conservan en la base de datos, pero ya no se consultan ni comparan desde el navegador.
+- Las tablas de perfiles, asignaciones y sesiones quedan sin acceso directo para el cliente.
+- **Antes de producción:** migra a Supabase Auth y hashes de contraseña.
 
 **Para producción, implementa:**
 
