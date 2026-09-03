@@ -16,47 +16,80 @@
         <div class="brand-copy"><p class="eyebrow">Movilidad conectada</p><p class="page-title">Monitoreo en vivo</p></div>
       </a>
       <nav class="header-nav" aria-label="Navegación principal">
-        <a class="nav-link is-active" href="index.html">Inicio</a>
-        <button class="nav-link" id="headerRoutes" type="button">Rutas</button>
+        <button class="nav-routes-btn" id="headerRoutes" type="button" aria-label="Abrir panel de rutas" title="Ver rutas">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+            <line x1="8" y1="2" x2="8" y2="18"></line>
+            <line x1="16" y1="6" x2="16" y2="22"></line>
+          </svg>
+          <span>Rutas</span>
+        </button>
         <a class="simple-link" href="login_chofer.html">Acceso chofer</a>
       </nav>
     </header>
 
     <main class="map-workspace">
-      <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-controls="routePanel" aria-expanded="false">
-        <span aria-hidden="true">☰</span> Rutas
+      <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-controls="routePanel" aria-expanded="false" aria-label="Abrir panel de rutas" title="Ver rutas">
+        <span class="toggle-arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </span>
       </button>
 
       <aside class="dashboard-panel public-dashboard" id="routePanel" aria-label="Rutas y estado de servicio">
-        <div class="public-intro">
+        <div class="panel-header">
+          <div class="panel-title-wrap">
+            <span class="panel-kicker">MinaGo · Rutas</span>
+            <h1 class="panel-title">Selección de Ruta</h1>
+          </div>
           <button class="sidebar-close" id="sidebarClose" type="button" aria-label="Cerrar panel" title="Cerrar panel">
             <span aria-hidden="true">×</span>
           </button>
-          <p class="section-kicker">MinaGo · Monitoreo de ruta</p>
-          <h1 class="section-title">Rutas disponibles</h1>
-          <p>Consulta los recorridos activos en el mapa.</p>
         </div>
 
-        <section class="live-card" aria-live="polite">
-          <div class="status-row"><span class="status-dot" id="statusDot"></span><strong id="statusText">Conectando…</strong></div>
-          <p class="live-caption">Estado de la red MinaGo</p>
-          <div class="alert hidden" id="alertBanner">La unidad lleva más de 5 minutos sin señal.</div>
-        </section>
+        <div class="panel-body">
+          <!-- 1. SELECTOR DE RUTAS: RUTA AZUL Y RUTA AMARILLO -->
+          <section class="routes-selection" aria-label="Rutas del servicio">
+            <div class="routes-selection-header">
+              <span class="section-label">Recorridos disponibles</span>
+              <span class="active-route-pill" id="selectedRouteName">Ruta Azul</span>
+            </div>
+            <div id="routeList" class="route-cards-list" aria-label="Listado de rutas"></div>
+          </section>
 
-        <section class="route-sidebar">
-          <div class="route-sidebar-header"><h3>Explora las rutas</h3><span id="selectedRouteName">Ruta Azul</span></div>
-          <div id="routeList" class="route-list" aria-label="Listado de rutas"></div>
-        </section>
+          <!-- 2. LO MÁS IMPORTANTE: ESTADO DE LA UNIDAD EN VIVO -->
+          <section class="live-unit-panel" aria-live="polite">
+            <div class="live-unit-header">
+              <div class="live-pill">
+                <span class="status-dot" id="statusDot"></span>
+                <strong id="statusText">Conectando…</strong>
+              </div>
+              <span class="unit-chip" id="unitCodeBadge">BUS-12</span>
+            </div>
 
-        <section class="travel-note">
-          <span class="travel-note-icon">✦</span>
-          <div><strong>Información en vivo</strong><p>La ubicación se actualiza automáticamente mientras la unidad está en ruta.</p></div>
-        </section>
+            <div class="unit-data-grid">
+              <div class="unit-data-box">
+                <span class="unit-data-label">Sentido de ruta</span>
+                <strong class="unit-data-val" id="unitSentido">Minatitlán ➔ Colima</strong>
+              </div>
+              <div class="unit-data-box">
+                <span class="unit-data-label">Última señal</span>
+                <strong class="unit-data-val" id="unitLastSignal">--</strong>
+              </div>
+            </div>
 
-        <section class="route-summary">
-          <h3>Horarios habituales</h3>
-          <ul><li>Salida central: 6:30 AM</li><li>Salida de regreso: 4:15 PM</li><li>Frecuencia estimada: 20–30 min</li></ul>
-        </section>
+            <div class="alert hidden" id="alertBanner">La unidad lleva más de 5 minutos sin señal.</div>
+
+            <button class="btn-focus-bus" id="btnFocusBus" type="button" title="Centrar el mapa en la unidad">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <span>Centrar unidad en mapa</span>
+            </button>
+          </section>
+        </div>
       </aside>
 
       <section class="map-panel" aria-label="Mapa de unidades en ruta">
@@ -78,11 +111,13 @@
         const setPanel = (isOpen) => {
           document.body.classList.toggle('sidebar-is-open', isOpen);
           toggle.setAttribute('aria-expanded', String(isOpen));
-          window.setTimeout(() => window.dispatchEvent(new Event('resize')), 250);
+          toggle.setAttribute('aria-label', isOpen ? 'Cerrar panel de rutas' : 'Abrir panel de rutas');
+          toggle.setAttribute('title', isOpen ? 'Cerrar rutas' : 'Ver rutas');
+          window.setTimeout(() => window.dispatchEvent(new Event('resize')), 280);
         };
         toggle.addEventListener('click', () => setPanel(!document.body.classList.contains('sidebar-is-open')));
-        close.addEventListener('click', () => setPanel(false));
-        headerRoutes.addEventListener('click', () => setPanel(true));
+        if (close) close.addEventListener('click', () => setPanel(false));
+        if (headerRoutes) headerRoutes.addEventListener('click', () => setPanel(!document.body.classList.contains('sidebar-is-open')));
         document.addEventListener('keydown', (event) => { if (event.key === 'Escape') setPanel(false); });
       })();
     </script>

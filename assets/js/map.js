@@ -3,6 +3,14 @@
   const mapElement = document.getElementById('map');
   const selectedRouteNameEl = document.getElementById('selectedRouteName');
   const routeListEl = document.getElementById('routeList');
+  const statusDot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  const alertBanner = document.getElementById('alertBanner');
+  const unitCodeBadge = document.getElementById('unitCodeBadge');
+  const unitSentido = document.getElementById('unitSentido');
+  const unitLastSignal = document.getElementById('unitLastSignal');
+  const btnFocusBus = document.getElementById('btnFocusBus');
+
   let hasLiveLocation = false;
   let displayRoute = sessionStorage.getItem('publicRouteSelection') || DEFAULT_ROUTE || 'Ruta Azul';
   let busAssignedRoute = DEFAULT_ROUTE || 'Ruta Azul';
@@ -33,10 +41,22 @@
     Object.entries(routeCatalog).forEach(([key, routeData]) => {
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = `route-option ${key === displayRoute ? 'is-active' : ''}`;
+      const isActive = key === displayRoute;
+      button.className = `route-card-item ${isActive ? 'is-active' : ''}`;
+      button.setAttribute('aria-pressed', String(isActive));
+
+      const isAzul = key.toLowerCase().includes('azul');
+      const routeDesc = isAzul ? 'Minatitlán ➔ Colima (Vía Principal)' : 'Circuito Urbano / Alterna';
+
       button.innerHTML = `
-        <span class="route-swatch" style="background:${routeData.color};"></span>
-        <span>${routeData.label}</span>
+        <div class="route-card-main">
+          <span class="route-card-swatch" style="background:${routeData.color};"></span>
+          <div class="route-card-details">
+            <strong class="route-card-title">${routeData.label}</strong>
+            <span class="route-card-desc">${routeDesc}</span>
+          </div>
+        </div>
+        <span class="route-card-tag">${isActive ? 'En mapa' : 'Ver'}</span>
       `;
 
       button.addEventListener('click', () => {
@@ -44,7 +64,13 @@
         sessionStorage.setItem('publicRouteSelection', key);
         if (selectedRouteNameEl) selectedRouteNameEl.textContent = key;
         renderRoute(key);
-        document.querySelectorAll('.route-option').forEach((el) => el.classList.toggle('is-active', el.textContent.trim().includes(key)));
+        document.querySelectorAll('.route-card-item').forEach((el) => {
+          const isSelected = el.querySelector('.route-card-title')?.textContent.trim() === key;
+          el.classList.toggle('is-active', isSelected);
+          el.setAttribute('aria-pressed', String(isSelected));
+          const tag = el.querySelector('.route-card-tag');
+          if (tag) tag.textContent = isSelected ? 'En mapa' : 'Ver';
+        });
       });
 
       routeListEl.appendChild(button);
@@ -190,7 +216,7 @@
     `;
   };
 
-  const escapeHtml = (value) => String(value ?? '').replace(/[&<>'\"]/g, (character) => ({
+  const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"']/g, (character) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
   })[character]);
 
@@ -215,6 +241,7 @@
       marker.setLatLng([latitud, longitud]);
       marker.setOpacity(1);
       marker.bindPopup(getPopupHtml({
+        codigo_unidad: key,
         ruta_actual: data.ruta_actual || busAssignedRoute || displayRoute || DEFAULT_ROUTE || 'Ruta Azul',
         color_ruta: data.color_ruta || routeCatalog[data.ruta_actual || busAssignedRoute || displayRoute || DEFAULT_ROUTE || 'Ruta Azul']?.color || '#1d4ed8',
         ultima_actualizacion: data.ultima_actualizacion || new Date().toISOString(),
@@ -230,6 +257,7 @@
     }).addTo(map);
 
     marker.bindPopup(getPopupHtml({
+      codigo_unidad: key,
       ruta_actual: data.ruta_actual || busAssignedRoute || displayRoute || DEFAULT_ROUTE || 'Ruta Azul',
       color_ruta: data.color_ruta || routeCatalog[data.ruta_actual || busAssignedRoute || displayRoute || DEFAULT_ROUTE || 'Ruta Azul']?.color || '#1d4ed8',
       ultima_actualizacion: data.ultima_actualizacion || new Date().toISOString(),
@@ -291,10 +319,6 @@
     followBusEnabled = false;
   });
 
-  const statusDot = document.getElementById('statusDot');
-  const statusText = document.getElementById('statusText');
-  const alertBanner = document.getElementById('alertBanner');
-
   const formatTime = (value) => {
     if (!value) return '--';
     const date = new Date(value);
@@ -302,9 +326,13 @@
   };
 
   const setStatus = (isLive, message) => {
-    statusDot.classList.toggle('live', isLive);
-    statusDot.classList.toggle('offline', !isLive);
-    statusText.textContent = message;
+    if (statusDot) {
+      statusDot.classList.toggle('live', isLive);
+      statusDot.classList.toggle('offline', !isLive);
+    }
+    if (statusText) {
+      statusText.textContent = message;
+    }
   };
 
   const updateInfo = (data, options = {}) => {
@@ -315,6 +343,7 @@
     const unitCode = data.codigo_unidad || UNIT_CODE;
 
     if (typeof latitud === 'number' && typeof longitud === 'number') {
+      lastKnownBusPosition = [latitud, longitud];
       const marker = ensureBusMarker(latitud, longitud, unitCode, data);
       if (marker) {
         busAssignedRoute = normalizeRouteName(data.ruta_actual || busAssignedRoute || displayRoute || DEFAULT_ROUTE || 'Ruta Azul');
@@ -331,21 +360,35 @@
       }
     }
 
+    if (unitCodeBadge) unitCodeBadge.textContent = unitCode;
+    if (unitSentido) unitSentido.textContent = data.sentido || 'Minatitlán ➔ Colima';
+    if (unitLastSignal) unitLastSignal.textContent = formatTime(timestamp);
+
     const now = Date.now();
     const lastSignal = new Date(timestamp).getTime();
     const diffMinutes = (now - lastSignal) / 60000;
     const isOutOfService = en_ruta === false || diffMinutes > 5;
 
     if (isOutOfService) {
-      setStatus(false, 'Sin señal o fuera de servicio');
-      alertBanner.classList.remove('hidden');
+      setStatus(false, 'Sin señal reciente');
+      if (alertBanner) alertBanner.classList.remove('hidden');
       setBusVisibility(unitCode, false);
     } else {
-      setStatus(true, 'Transmitiendo en vivo');
-      alertBanner.classList.add('hidden');
+      setStatus(true, 'En circulación');
+      if (alertBanner) alertBanner.classList.add('hidden');
       setBusVisibility(unitCode, true);
     }
   };
+
+  if (btnFocusBus) {
+    btnFocusBus.addEventListener('click', () => {
+      if (lastKnownBusPosition && Number.isFinite(lastKnownBusPosition[0]) && Number.isFinite(lastKnownBusPosition[1])) {
+        focusOnBus(lastKnownBusPosition[0], lastKnownBusPosition[1], 15);
+      } else if (currentRouteLayer) {
+        map.fitBounds(currentRouteLayer.getBounds(), { padding: [30, 30] });
+      }
+    });
+  }
 
   const channel = window.viaminaSupabase
     .channel('public:unidades_transporte')
