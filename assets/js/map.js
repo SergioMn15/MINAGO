@@ -294,12 +294,6 @@
   const statusDot = document.getElementById('statusDot');
   const statusText = document.getElementById('statusText');
   const alertBanner = document.getElementById('alertBanner');
-  const unitCode = document.getElementById('unitCode');
-  const lastUpdate = document.getElementById('lastUpdate');
-  const latValue = document.getElementById('latValue');
-  const lngValue = document.getElementById('lngValue');
-
-  unitCode.textContent = UNIT_CODE;
 
   const formatTime = (value) => {
     if (!value) return '--';
@@ -332,15 +326,10 @@
           sentido: data.sentido || 'Minatitlán - Colima'
         }));
       }
-      latValue.textContent = latitud.toFixed(5);
-      lngValue.textContent = longitud.toFixed(5);
-
       if (!options.skipCenter) {
         focusOnBus(latitud, longitud, 14);
       }
     }
-
-    lastUpdate.textContent = formatTime(timestamp);
 
     const now = Date.now();
     const lastSignal = new Date(timestamp).getTime();
