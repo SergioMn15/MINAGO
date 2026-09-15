@@ -1,6 +1,13 @@
 window.VIAMINA_CONFIG = {
-  SUPABASE_URL: "https://eaglsvjoggiaqqbrslpt.supabase.co",
-  SUPABASE_ANON_KEY: "sb_publishable_9zQGwMDl4ZBywoAHtSGdDg_qOp9Ex-F",
+  FIREBASE_CONFIG: {
+    apiKey: "AIzaSyA4YsVoJ9p2xnv--MpwTIbpljGD9jfTqsw",
+    authDomain: "minago-9e510.firebaseapp.com",
+    databaseURL: "https://minago-9e510-default-rtdb.firebaseio.com",
+    projectId: "minago-9e510",
+    storageBucket: "minago-9e510.firebasestorage.app",
+    messagingSenderId: "728800753797",
+    appId: "1:728800753797:web:68ed5bc24e992e64a051ec"
+  },
   UNIT_CODE: "BUS-12",
   DEFAULT_ROUTE: "Ruta Azul",
   ROUTES: [

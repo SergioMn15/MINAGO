@@ -1,3 +1,5 @@
+import { ref, onValue } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js';
+
 (() => {
   const { UNIT_CODE, DEFAULT_ROUTE, ROUTES } = window.VIAMINA_CONFIG;
   const mapElement = document.getElementById('map');
@@ -128,38 +130,7 @@
 
   buildRouteList();
 
-  const applyRouteFromSupabase = (routeName) => {
-    const normalized = normalizeRouteName(routeName);
-    if (routeCatalog[normalized]) {
-      busAssignedRoute = normalized;
-      if (selectedRouteNameEl && !sessionStorage.getItem('publicRouteSelection')) {
-        selectedRouteNameEl.textContent = normalized;
-      }
-      if (!sessionStorage.getItem('publicRouteSelection')) {
-        displayRoute = normalized;
-        renderRoute(normalized);
-      }
-      buildRouteList();
-    }
-  };
-
   renderRoute(displayRoute);
-
-  window.viaminaSupabase
-    .from('unidades_transporte')
-    .select('*')
-    .eq('codigo_unidad', UNIT_CODE)
-    .maybeSingle()
-    .then(({ data, error }) => {
-      if (error) {
-        console.warn('No hay registro de ruta en Supabase, usando fallback local.', error);
-        return;
-      }
-
-      if (data && data.ruta_actual) {
-        applyRouteFromSupabase(data.ruta_actual);
-      }
-    });
 
   setTimeout(() => {
     map.invalidateSize();
@@ -338,8 +309,9 @@
   const updateInfo = (data, options = {}) => {
     if (!data) return;
 
-    const { latitud, longitud, ultima_actualizacion, en_ruta } = data;
-    const timestamp = ultima_actualizacion || new Date().toISOString();
+    const latitud = Number(data.lat);
+    const longitud = Number(data.lng);
+    const timestamp = Number(data.ultima_senal) || Date.now();
     const unitCode = data.codigo_unidad || UNIT_CODE;
 
     if (typeof latitud === 'number' && typeof longitud === 'number') {
@@ -365,9 +337,9 @@
     if (unitLastSignal) unitLastSignal.textContent = formatTime(timestamp);
 
     const now = Date.now();
-    const lastSignal = new Date(timestamp).getTime();
+    const lastSignal = Number(timestamp);
     const diffMinutes = (now - lastSignal) / 60000;
-    const isOutOfService = en_ruta === false || diffMinutes > 5;
+    const isOutOfService = diffMinutes > 5;
 
     if (isOutOfService) {
       setStatus(false, 'Sin señal reciente');
@@ -390,41 +362,17 @@
     });
   }
 
-  const channel = window.viaminaSupabase
-    .channel('public:unidades_transporte')
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'unidades_transporte'
-      },
-      (payload) => {
-        const row = payload.new || payload.old;
-        if (!row) return;
-        updateInfo(row, { skipCenter: false });
-      }
-    )
-    .subscribe();
-
-  // Carga inicial desde la base
-  window.viaminaSupabase
-    .from('unidades_transporte')
-    .select('*')
-    .eq('en_ruta', true)
-    .then(({ data, error }) => {
-      if (error) {
-        console.error('Error al consultar estado inicial:', error);
-        setStatus(false, 'Sin datos iniciales');
-        return;
-      }
-
-      if (Array.isArray(data) && data.length > 0) {
-        data.forEach((row) => updateInfo(row, { skipCenter: true }));
-      } else {
-        setStatus(false, 'Sin unidad activa');
-      }
-    });
-
-  window.viaminaMapChannel = channel;
+  // Firebase emite el estado inicial y cada cambio sin polling ni recargas.
+  const unitRef = ref(window.viaminaDatabase, `unidades/${UNIT_CODE}`);
+  onValue(unitRef, (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      updateInfo({ ...data, codigo_unidad: UNIT_CODE }, { skipCenter: false });
+    } else {
+      setStatus(false, 'Sin unidad activa');
+    }
+  }, (error) => {
+    console.error('Error al escuchar ubicación en Firebase:', error);
+    setStatus(false, 'Sin conexión en tiempo real');
+  });
 })();

@@ -121,20 +121,711 @@ h1, h2, h3, p { margin: 0; }
 .back-link { margin-top: 21px; text-align: center; }
 .back-link a { color: var(--mint-800); font-size: .76rem; font-weight: 800; text-decoration: none; }
 
-/* Panel del chofer */
-.driver-app { min-height: 100vh; background: linear-gradient(150deg, #f6fbf9 0%, #edf8f5 100%); }
-.driver-shell { display: grid; place-items: center; padding: clamp(26px, 6vw, 62px) 18px; }
-.driver-panel { width: min(100%, 560px); padding: clamp(22px, 5vw, 34px); border-radius: 24px; box-shadow: var(--shadow); }
-.driver-status { margin-bottom: 24px; padding: 13px 15px; border: 1px solid #dcefe9; border-radius: 14px; background: #f7fcfa; }
-.driver-info { margin-top: 17px; }
-.driver-info label { display: block; margin-bottom: 8px; color: var(--ink); font-size: .76rem; font-weight: 800; }
-.driver-info input:disabled { color: var(--mint-800); background: var(--surface-soft); cursor: not-allowed; }
-.driver-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 24px; }
-.secondary-btn { color: var(--mint-800); background: #e9f6f1; }
-.secondary-btn:hover { background: #d9f0e8; transform: translateY(-1px); }
-#logoutBtn { grid-column: 1 / -1; color: #547173; background: transparent; border: 1px solid var(--line); }
-.driver-metrics { margin-top: 23px; }
-.driver-message { margin-top: 17px; padding: 13px; color: var(--mint-800); text-align: center; font-size: .75rem; line-height: 1.45; background: var(--surface-soft); border: 1px solid #d5ece4; border-radius: 12px; }
+/* ============================================================
+   CABINA DE NAVEGACIÓN GPS 3D DEL CHOFER (ESTILO GOOGLE MAPS)
+   ============================================================ */
+.driver-app {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #090d16;
+  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #f1f5f9;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Mapa WebGL a pantalla completa */
+.driver-map-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+.driver-map-container .maplibregl-canvas {
+  outline: none;
+}
+.driver-map-container .maplibregl-ctrl-bottom-right,
+.driver-map-container .maplibregl-ctrl-bottom-left {
+  display: none !important;
+}
+
+/* 1. HUD SUPERIOR: INFORMACIÓN DE RUTA Y SATÉLITE */
+.cockpit-topbar {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  right: 14px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+.cockpit-unit-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.cockpit-pulse-beacon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cockpit-pulse-beacon .status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--warning);
+  box-shadow: 0 0 0 4px rgba(221, 155, 39, 0.25);
+  transition: all 0.3s ease;
+}
+.cockpit-pulse-beacon .status-dot.live {
+  background: #10b981;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.3), 0 0 14px #10b981;
+  animation: beaconPulse 2s infinite ease-out;
+}
+.cockpit-pulse-beacon .status-dot.offline {
+  background: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.25);
+}
+@keyframes beaconPulse {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6), 0 0 12px #10b981; }
+  70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0), 0 0 14px #10b981; }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0), 0 0 12px #10b981; }
+}
+.cockpit-unit-info {
+  display: flex;
+  flex-direction: column;
+}
+.cockpit-unit-code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #38bdf8;
+  letter-spacing: 0.05em;
+  line-height: 1.1;
+}
+.cockpit-driver-name {
+  font-size: 0.68rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+/* Tarjeta de Ruta Activa */
+.cockpit-route-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  flex: 1;
+  min-width: 0;
+  padding: 0 8px;
+}
+.cockpit-route-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+}
+.route-badge-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #3b82f6;
+  box-shadow: 0 0 8px #3b82f6;
+  flex-shrink: 0;
+}
+.cockpit-route-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.swap-direction-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #38bdf8;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.swap-direction-btn:hover {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: #38bdf8;
+  transform: scale(1.05);
+}
+.swap-direction-btn:active {
+  transform: scale(0.95);
+}
+.cockpit-direction-text {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Estado de GPS & Botón Menú */
+.cockpit-gps-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.gps-accuracy-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #38bdf8;
+}
+.gps-accuracy-chip svg {
+  stroke: #38bdf8;
+  flex-shrink: 0;
+}
+.cockpit-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.cockpit-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* 2. VELOCÍMETRO DIGITAL Y TELEMETRÍA (HUD LATERAL) */
+.cockpit-speedo-panel {
+  position: absolute;
+  top: 92px;
+  left: 14px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 16px;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 22px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.4);
+  min-width: 104px;
+}
+.speedo-dial {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.speedo-number {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 2.7rem;
+  font-weight: 800;
+  line-height: 0.95;
+  color: #38bdf8;
+  text-shadow: 0 0 22px rgba(56, 189, 248, 0.5);
+  letter-spacing: -0.04em;
+}
+.speedo-unit {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+.speedo-subdata {
+  width: 100%;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+}
+.subdata-item {
+  display: flex;
+  flex-direction: column;
+}
+.subdata-label {
+  font-size: 0.54rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+.subdata-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+/* 3. BOTONES FLOTANTES DE NAVEGACIÓN (DERECHA) */
+.cockpit-floating-actions {
+  position: absolute;
+  top: 92px;
+  right: 14px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.hud-action-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+  transition: all 0.2s ease;
+}
+.hud-action-btn:hover {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: rgba(56, 189, 248, 0.5);
+  color: #38bdf8;
+  transform: translateY(-2px);
+}
+.hud-action-btn:active {
+  transform: scale(0.93);
+}
+.hud-action-btn.recenter-btn {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.9), rgba(2, 132, 199, 0.9));
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  box-shadow: 0 0 20px rgba(14, 165, 233, 0.5);
+}
+.hud-action-btn .mode-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #38bdf8;
+}
+.hud-action-btn .btn-tooltip {
+  position: absolute;
+  right: 58px;
+  padding: 4px 8px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(6px);
+  transition: all 0.2s ease;
+}
+.hud-action-btn:hover .btn-tooltip {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* 4. HUD INFERIOR: ACCIÓN DE CONDUCCIÓN */
+.cockpit-bottombar {
+  position: absolute;
+  bottom: 16px;
+  left: 14px;
+  right: 14px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 520px;
+  margin: 0 auto;
+  pointer-events: none;
+}
+.cockpit-bottombar > * {
+  pointer-events: auto;
+}
+.cockpit-msg-bar {
+  padding: 10px 16px;
+  text-align: center;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  transition: all 0.2s ease;
+}
+.cockpit-drive-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 14px 24px;
+  border-radius: 18px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  border: 0;
+  cursor: pointer;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.4);
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.2s ease;
+}
+.cockpit-drive-btn.start {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 12px 28px rgba(16, 185, 129, 0.35), 0 0 20px rgba(16, 185, 129, 0.2);
+}
+.cockpit-drive-btn.start:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px rgba(16, 185, 129, 0.45), 0 0 26px rgba(16, 185, 129, 0.3);
+}
+.cockpit-drive-btn.stop {
+  background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+  box-shadow: 0 12px 28px rgba(244, 63, 94, 0.35);
+}
+.cockpit-drive-btn.stop:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px rgba(244, 63, 94, 0.45);
+}
+.cockpit-drive-btn:active {
+  transform: scale(0.97);
+}
+
+/* 5. MARCADOR DINÁMICO 3D DEL VEHÍCULO */
+.nav-puck-container {
+  position: relative;
+  width: 68px;
+  height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+/* Haz de luz de navegación frontal (conical headlight / radar beam) */
+.nav-puck-beam {
+  position: absolute;
+  top: -42px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 58px;
+  height: 56px;
+  background: radial-gradient(ellipse at 50% 100%, rgba(56, 189, 248, 0.55) 0%, rgba(56, 189, 248, 0.2) 50%, transparent 85%);
+  clip-path: polygon(50% 100%, 0% 0%, 100% 0%);
+  pointer-events: none;
+  filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.8));
+}
+/* Halo con pulso radar alrededor del coche */
+.nav-puck-halo {
+  position: absolute;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(14, 165, 233, 0.2);
+  border: 1.5px solid rgba(56, 189, 248, 0.6);
+  animation: puckRadarPulse 2.2s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+  pointer-events: none;
+}
+@keyframes puckRadarPulse {
+  0% { transform: scale(0.8); opacity: 0.9; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+/* Cuerpo del vehículo estilo 3D Puck */
+.nav-puck-body {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  border: 3px solid #ffffff;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5), 0 0 16px rgba(56, 189, 248, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.nav-puck-body img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  pointer-events: none;
+}
+/* Flecha de sentido frontal */
+.nav-puck-arrow {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 9px solid #ffffff;
+  filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.6));
+}
+
+/* 6. CAJÓN LATERAL DE CONFIGURACIÓN (DRAWER) */
+.cockpit-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 100;
+  opacity: 1;
+  transition: opacity 0.25s ease;
+}
+.cockpit-drawer-overlay.hidden {
+  display: none;
+  opacity: 0;
+}
+.cockpit-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(100%, 400px);
+  background: #0f172a;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: -15px 0 40px rgba(0, 0, 0, 0.6);
+  z-index: 101;
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.cockpit-drawer.hidden {
+  transform: translateX(100%);
+  pointer-events: none;
+}
+.drawer-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.drawer-title-wrap h2 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin-top: 4px;
+}
+.drawer-close-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.drawer-close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+.cockpit-drawer .driver-info {
+  margin-top: 18px;
+}
+.cockpit-drawer .driver-info label {
+  display: block;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #94a3b8;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.cockpit-drawer .driver-info input,
+.cockpit-drawer .driver-info select {
+  width: 100%;
+  padding: 12px 14px;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  color: #f1f5f9;
+  font-size: 0.88rem;
+  outline: none;
+}
+.cockpit-drawer .driver-info input:focus,
+.cockpit-drawer .driver-info select:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+}
+.cockpit-drawer .driver-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 24px;
+  padding: 14px;
+  background: #1e293b;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.cockpit-drawer .driver-metrics div {
+  padding: 6px 0;
+}
+.cockpit-drawer .driver-metrics span {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.cockpit-drawer .driver-metrics strong {
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82rem;
+  color: #38bdf8;
+  margin-top: 3px;
+}
+.cockpit-drawer .drawer-actions {
+  margin-top: auto;
+  padding-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cockpit-drawer .simple-link {
+  display: block;
+  text-align: center;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #38bdf8;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+.cockpit-drawer .logout-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.cockpit-drawer .logout-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+}
+
+/* Responsividad para móviles pequeños */
+@media (max-width: 480px) {
+  .cockpit-topbar {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    padding: 8px 10px;
+    border-radius: 16px;
+  }
+  .cockpit-unit-code {
+    font-size: 0.82rem;
+  }
+  .cockpit-driver-name {
+    display: none;
+  }
+  .cockpit-route-title {
+    font-size: 0.84rem;
+  }
+  .cockpit-direction-text {
+    font-size: 0.65rem;
+  }
+  .gps-accuracy-chip {
+    padding: 5px 8px;
+    font-size: 0.62rem;
+  }
+  .cockpit-speedo-panel {
+    top: 78px;
+    left: 10px;
+    padding: 10px 12px;
+    border-radius: 18px;
+    min-width: 90px;
+  }
+  .speedo-number {
+    font-size: 2.2rem;
+  }
+  .cockpit-floating-actions {
+    top: 78px;
+    right: 10px;
+  }
+  .hud-action-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+  }
+  .cockpit-bottombar {
+    bottom: 12px;
+    left: 10px;
+    right: 10px;
+  }
+  .cockpit-drive-btn {
+    min-height: 52px;
+    font-size: 0.96rem;
+  }
+}
 
 @media (max-width: 820px) {
   .topbar { min-height: 72px; padding: 10px 17px; }

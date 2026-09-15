@@ -21,8 +21,8 @@
 
       <form id="loginForm">
         <div class="form-group">
-          <label for="usuario">Usuario</label>
-          <input type="text" id="usuario" placeholder="Ej. juan" autocomplete="username" required />
+          <label for="usuario">Correo electrónico</label>
+          <input type="email" id="usuario" placeholder="chofer@minago.mx" autocomplete="username" required />
         </div>
         <div class="form-group">
           <label for="contraseña">Contraseña</label>
@@ -31,46 +31,78 @@
         <button type="submit" class="login-btn" id="submitBtn">Iniciar sesión</button>
       </form>
 
-      <div class="demo-hint"><strong>Acceso de práctica</strong><br />juan / password123 · maria / password456 · carlos / password789</div>
       <p class="back-link"><a href="index.html">← Volver al mapa público</a></p>
     </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="assets/js/config.js"></script>
-    <script src="assets/js/supabaseClient.js"></script>
-    <script>
+    <script type="module">
+      import { app } from './assets/js/firebaseClient.js';
+      import { get } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js';
+      import { ref } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js';
+      import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
+
+      const auth = getAuth(app);
+      const database = window.viaminaDatabase;
       const form = document.getElementById('loginForm');
       const submitBtn = document.getElementById('submitBtn');
       const message = document.getElementById('loginMessage');
 
+      async function getAssignedUnit(user) {
+        const snapshot = await get(ref(database, `choferes/${user.uid}/unidad_asignada`));
+        const unitCode = snapshot.val();
+        if (typeof unitCode !== 'string' || !unitCode.trim()) {
+          throw new Error('NO_UNIT_ASSIGNED');
+        }
+        return unitCode.trim();
+      }
+
+      async function redirectAuthenticatedUser(user) {
+        const unitCode = await getAssignedUnit(user);
+        sessionStorage.setItem('choferNombre', user.displayName || user.email || 'Chofer');
+        sessionStorage.setItem('choferId', user.uid);
+        sessionStorage.setItem('unidadActiva', unitCode);
+        showMessage('Inicio de sesión exitoso. Redirigiendo…', 'success');
+        window.location.href = 'chofer.html';
+      }
+
+      onAuthStateChanged(auth, async (user) => {
+        if (!user) return;
+        try {
+          await redirectAuthenticatedUser(user);
+        } catch (error) {
+          await signOut(auth);
+          showMessage(error.message === 'NO_UNIT_ASSIGNED'
+            ? 'Tu cuenta no tiene una unidad asignada. Contacta al administrador.'
+            : 'No se pudo validar tu unidad. Intenta nuevamente.', 'error');
+        }
+      });
+
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
-        const usuario = document.getElementById('usuario').value.trim();
+        const email = document.getElementById('usuario').value.trim();
         const contraseña = document.getElementById('contraseña').value;
-        if (!usuario || !contraseña) return showMessage('Por favor completa todos los campos.', 'error');
+        if (!email || !contraseña) return showMessage('Por favor completa todos los campos.', 'error');
 
         submitBtn.disabled = true;
         submitBtn.textContent = 'Validando…';
         try {
-          const { data: loginData, error } = await window.viaminaSupabase.rpc('authenticate_driver', {
-            p_usuario: usuario,
-            p_contrasena: contraseña
-          });
-          const chofer = Array.isArray(loginData) ? loginData[0] : loginData;
-          if (error || !chofer?.session_token) {
-            showMessage('Usuario o contraseña incorrectos.', 'error');
-            return;
-          }
-          sessionStorage.setItem('choferAutorizado', 'true');
-          sessionStorage.setItem('choferNombre', chofer.nombre_completo);
-          sessionStorage.setItem('choferId', chofer.chofer_id);
-          sessionStorage.setItem('unidadActiva', chofer.codigo_unidad);
-          sessionStorage.setItem('choferSessionToken', chofer.session_token);
-          showMessage('Inicio de sesión exitoso. Redirigiendo…', 'success');
-          setTimeout(() => { window.location.href = 'chofer.html'; }, 700);
+          const credentials = await signInWithEmailAndPassword(auth, email, contraseña);
+          await redirectAuthenticatedUser(credentials.user);
         } catch (error) {
           console.error('Error de inicio de sesión:', error);
-          showMessage('No pudimos conectar con el servidor.', 'error');
+          if (error.message === 'NO_UNIT_ASSIGNED') {
+            await signOut(auth);
+          }
+          const messages = {
+            'auth/invalid-credential': 'El correo o la contraseña son incorrectos.',
+            'auth/user-not-found': 'No existe una cuenta con ese correo.',
+            'auth/wrong-password': 'El correo o la contraseña son incorrectos.',
+            'auth/invalid-email': 'Escribe un correo electrónico válido.',
+            'auth/too-many-requests': 'Demasiados intentos. Espera unos minutos e inténtalo de nuevo.'
+          };
+          showMessage(messages[error.code] || (error.message === 'NO_UNIT_ASSIGNED'
+            ? 'Tu cuenta no tiene una unidad asignada. Contacta al administrador.'
+            : 'No pudimos validar tu acceso. Intenta nuevamente.'), 'error');
         } finally {
           submitBtn.disabled = false;
           submitBtn.textContent = 'Iniciar sesión';
