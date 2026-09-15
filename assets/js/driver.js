@@ -1,4 +1,4 @@
-import { ref, set } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js';
+import { onDisconnect, ref, remove, set } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js';
 import { get } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js';
 import { app } from './firebaseClient.js';
 import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
@@ -565,6 +565,13 @@ async function startTracking() {
 
   stopPreviewLocation();
 
+  const unitRef = ref(window.viaminaDatabase, `unidades/${driverState.unitCode}`);
+  try {
+    await onDisconnect(unitRef).remove();
+  } catch (error) {
+    console.error('No se pudo configurar la limpieza al desconectar:', error);
+  }
+
   driverState.isTracking = true;
   setStatus(true, 'Buscando satélite');
   setMessage('Conectando con satélites GPS…');
@@ -579,6 +586,11 @@ async function startTracking() {
     ({ coords }) => sendLocation(coords),
     (error) => {
       driverState.isTracking = false;
+      if (driverState.unitCode) {
+        remove(ref(window.viaminaDatabase, `unidades/${driverState.unitCode}`)).catch((removeError) => {
+          console.error('No se pudo retirar la unidad tras el error GPS:', removeError);
+        });
+      }
       setStatus(false, 'GPS no disponible');
       setMessage(error.code === error.PERMISSION_DENIED ? 'Se denegó el permiso de ubicación.' : 'Señal GPS interrumpida.');
       if (elements.startRouteBtn) elements.startRouteBtn.classList.remove('hidden');
@@ -603,6 +615,14 @@ async function stopTracking() {
   if (elements.startRouteBtn) elements.startRouteBtn.classList.remove('hidden');
   if (elements.stopRouteBtn) elements.stopRouteBtn.classList.add('hidden');
   if (elements.speedVal) elements.speedVal.textContent = '0';
+
+  if (driverState.unitCode) {
+    try {
+      await remove(ref(window.viaminaDatabase, `unidades/${driverState.unitCode}`));
+    } catch (error) {
+      console.error('No se pudo retirar la unidad de Firebase:', error);
+    }
+  }
 
   setMessage('Servicio finalizado. Unidad fuera de circulación.');
 }
@@ -686,6 +706,11 @@ function stopSimulation() {
     driverState.simTimer = null;
   }
   driverState.isSimulating = false;
+  if (driverState.unitCode) {
+    remove(ref(window.viaminaDatabase, `unidades/${driverState.unitCode}`)).catch((error) => {
+      console.error('No se pudo retirar la simulación de Firebase:', error);
+    });
+  }
   setStatus(false, 'Simulación detenida');
   setMessage('Simulación pausada.');
   stopTripTimer();

@@ -210,6 +210,13 @@ import { ref, onValue } from 'https://www.gstatic.com/firebasejs/12.19.0/firebas
     }
   };
 
+  const removeBusMarker = (unitCode) => {
+    const marker = busMarkersByUnit[unitCode];
+    if (!marker) return;
+    marker.remove();
+    delete busMarkersByUnit[unitCode];
+  };
+
   const ensureBusMarker = (latitud, longitud, unitCodeOverride = UNIT_CODE, data = {}) => {
     const key = unitCodeOverride || UNIT_CODE;
     let marker = busMarkersByUnit[key];
@@ -375,6 +382,7 @@ import { ref, onValue } from 'https://www.gstatic.com/firebasejs/12.19.0/firebas
     if (data) {
       updateInfo({ ...data, codigo_unidad: UNIT_CODE }, { skipCenter: false });
     } else {
+      removeBusMarker(UNIT_CODE);
       setStatus(false, 'Sin unidad activa');
     }
   }, (error) => {
