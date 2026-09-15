@@ -20,6 +20,7 @@ import { ref, onValue } from 'https://www.gstatic.com/firebasejs/12.19.0/firebas
   let currentRouteLayer = null;
   let followBusEnabled = true;
   let lastKnownBusPosition = null;
+  let userLocation = null;
 
   const routeCatalog = ROUTES.reduce((acc, route) => {
     acc[route.name] = {
@@ -100,7 +101,11 @@ import { ref, onValue } from 'https://www.gstatic.com/firebasejs/12.19.0/firebas
         }
       }).addTo(map);
 
-      map.fitBounds(currentRouteLayer.getBounds(), { padding: [30, 30] });
+      if (userLocation) {
+        map.setView(userLocation, 14);
+      } else {
+        map.fitBounds(currentRouteLayer.getBounds(), { padding: [30, 30] });
+      }
       routeLayers[routeName] = currentRouteLayer;
       if (selectedRouteNameEl) selectedRouteNameEl.textContent = routeName;
       buildRouteList();
@@ -112,7 +117,7 @@ import { ref, onValue } from 'https://www.gstatic.com/firebasejs/12.19.0/firebas
   const map = L.map(mapElement, {
     zoomControl: true,
     attributionControl: true
-  }).setView([19.244338, -103.742154], 12);
+  }).setView([0, 0], 2);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
@@ -141,16 +146,17 @@ import { ref, onValue } from 'https://www.gstatic.com/firebasejs/12.19.0/firebas
       (position) => {
         const { latitude, longitude } = position.coords;
         if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
-          map.setView([latitude, longitude], 14);
+          userLocation = [latitude, longitude];
+          map.setView(userLocation, 14);
         }
       },
-      () => {
-        // Sin centro fijo: dejar el mapa neutral si la geolocalización no está disponible.
+      (error) => {
+        console.warn('No se pudo obtener la ubicación del visitante:', error.message);
       },
       {
         enableHighAccuracy: true,
-        timeout: 5000,
-        maximumAge: 15000
+        timeout: 15000,
+        maximumAge: 0
       }
     );
   }
@@ -327,7 +333,7 @@ import { ref, onValue } from 'https://www.gstatic.com/firebasejs/12.19.0/firebas
           sentido: data.sentido || 'Minatitlán - Colima'
         }));
       }
-      if (!options.skipCenter) {
+      if (!options.skipCenter && !userLocation) {
         focusOnBus(latitud, longitud, 14);
       }
     }
