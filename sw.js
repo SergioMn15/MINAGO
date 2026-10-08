@@ -1,4 +1,4 @@
-const CACHE_NAME = 'minago-v5';
+const CACHE_NAME = 'minago-v6';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

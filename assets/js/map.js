@@ -174,9 +174,18 @@ import { ref, onValue } from 'https://www.gstatic.com/firebasejs/12.19.0/firebas
         <div class="public-bus-puck" style="--bus-route-color:${escapeHtml(routeColor)};">
           <div class="public-bus-beam"></div>
           <div class="public-bus-halo"></div>
-          <div class="public-bus-body">
+          <div class="public-bus-body" aria-label="Unidad en ruta">
             <div class="public-bus-arrow"></div>
-            <img src="camion.webp" alt="Unidad" />
+            <svg class="public-bus-svg" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+              <rect x="14" y="10" width="36" height="44" rx="9" fill="#ffffff" />
+              <rect x="18" y="15" width="28" height="15" rx="4" fill="#dbeafe" />
+              <rect x="18" y="34" width="10" height="7" rx="2" fill="currentColor" opacity="0.9" />
+              <rect x="36" y="34" width="10" height="7" rx="2" fill="currentColor" opacity="0.9" />
+              <circle cx="23" cy="50" r="4" fill="#0f172a" />
+              <circle cx="41" cy="50" r="4" fill="#0f172a" />
+              <path d="M22 8h20" stroke="#ffffff" stroke-width="5" stroke-linecap="round" />
+              <path d="M22 8h20" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+            </svg>
           </div>
         </div>
       `
