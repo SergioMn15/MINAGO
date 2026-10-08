@@ -1319,6 +1319,104 @@ h1, h2, h3, p { margin: 0; }
   transform: translateY(0);
 }
 
+.schedule-panel {
+  background: #fff;
+  border: 1px solid #dcece7;
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 14px rgba(21, 60, 67, .04);
+}
+.schedule-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.schedule-title {
+  margin-top: 3px;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -.03em;
+}
+.schedule-select {
+  max-width: 156px;
+  padding: 8px 9px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f8fbfa;
+  color: var(--ink);
+  font-size: .72rem;
+  font-weight: 800;
+  outline: none;
+}
+.next-departure-card {
+  padding: 14px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #0f766e, #14b8a6);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(20, 184, 166, .22);
+}
+.next-departure-label {
+  display: block;
+  font-size: .66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  opacity: .82;
+}
+.next-departure-card strong {
+  display: block;
+  margin-top: 3px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 2rem;
+  line-height: 1;
+}
+.next-departure-card small {
+  display: block;
+  margin-top: 5px;
+  font-size: .75rem;
+  font-weight: 700;
+  opacity: .88;
+}
+.schedule-list {
+  display: grid;
+  gap: 7px;
+}
+.schedule-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid #e2edea;
+  border-radius: 11px;
+  background: #f8fbfa;
+}
+.schedule-row span {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--ink);
+  font-size: .9rem;
+  font-weight: 800;
+}
+.schedule-row small {
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 800;
+  text-align: right;
+}
+.schedule-row.is-next {
+  border-color: var(--mint-600);
+  background: #ecfbf7;
+  box-shadow: inset 4px 0 0 var(--mint-600);
+}
+.schedule-row.is-next span {
+  color: var(--mint-800);
+}
+
 .public-dashboard { scrollbar-color: rgba(39, 125, 105, .65) transparent; scrollbar-width: thin; }
 .public-dashboard::-webkit-scrollbar { width: 8px; }
 .public-dashboard::-webkit-scrollbar-track { background: transparent; }

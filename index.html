@@ -93,6 +93,27 @@
               <span>Centrar unidad en mapa</span>
             </button>
           </section>
+
+          <section class="schedule-panel" aria-label="Horarios de salida">
+            <div class="schedule-header">
+              <div>
+                <span class="section-label">Horarios</span>
+                <h2 class="schedule-title">Próxima salida</h2>
+              </div>
+              <select id="scheduleDirection" class="schedule-select" aria-label="Seleccionar origen de salida">
+                <option value="colima">Colima → Minatitlán</option>
+                <option value="minatitlan">Minatitlán → Colima</option>
+              </select>
+            </div>
+
+            <div class="next-departure-card">
+              <span class="next-departure-label">Siguiente camión</span>
+              <strong id="nextDepartureTime">--:--</strong>
+              <small id="nextDepartureDetail">Selecciona un origen</small>
+            </div>
+
+            <div class="schedule-list" id="scheduleList" aria-live="polite"></div>
+          </section>
         </div>
       </aside>
 
@@ -122,6 +143,62 @@
         if (close) close.addEventListener('click', () => setPanel(false));
         if (headerRoutes) headerRoutes.addEventListener('click', () => setPanel(!document.body.classList.contains('sidebar-is-open')));
         document.addEventListener('keydown', (event) => { if (event.key === 'Escape') setPanel(false); });
+
+        const scheduleData = {
+          colima: {
+            label: 'Colima → Minatitlán',
+            origin: 'Colima',
+            destination: 'Minatitlán',
+            times: ['06:00', '08:30', '11:30', '14:00', '16:30', '18:30']
+          },
+          minatitlan: {
+            label: 'Minatitlán → Colima',
+            origin: 'Minatitlán',
+            destination: 'Colima',
+            times: ['06:30', '09:00', '12:00', '14:30', '17:00', '19:00']
+          }
+        };
+
+        const scheduleDirection = document.getElementById('scheduleDirection');
+        const scheduleList = document.getElementById('scheduleList');
+        const nextDepartureTime = document.getElementById('nextDepartureTime');
+        const nextDepartureDetail = document.getElementById('nextDepartureDetail');
+
+        const getNextDeparture = (times) => {
+          const now = new Date();
+          const nowMinutes = now.getHours() * 60 + now.getMinutes();
+          return times.find((time) => {
+            const [hours, minutes] = time.split(':').map(Number);
+            return hours * 60 + minutes >= nowMinutes;
+          }) || times[0];
+        };
+
+        const renderSchedule = () => {
+          if (!scheduleDirection || !scheduleList || !nextDepartureTime || !nextDepartureDetail) return;
+          const selected = scheduleData[scheduleDirection.value] || scheduleData.colima;
+          const nextTime = getNextDeparture(selected.times);
+          const nextIsTomorrow = selected.times.indexOf(nextTime) === 0 && (() => {
+            const now = new Date();
+            const [lastHours, lastMinutes] = selected.times[selected.times.length - 1].split(':').map(Number);
+            return now.getHours() * 60 + now.getMinutes() > lastHours * 60 + lastMinutes;
+          })();
+
+          nextDepartureTime.textContent = nextTime;
+          nextDepartureDetail.textContent = `${selected.label}${nextIsTomorrow ? ' · mañana' : ''}`;
+          scheduleList.innerHTML = selected.times.map((time) => `
+            <div class="schedule-row ${time === nextTime ? 'is-next' : ''}">
+              <span>${time}</span>
+              <small>${selected.origin} → ${selected.destination}</small>
+            </div>
+          `).join('');
+        };
+
+        if (scheduleDirection) {
+          scheduleDirection.addEventListener('change', renderSchedule);
+          renderSchedule();
+          window.setInterval(renderSchedule, 60000);
+        }
+
         if ('serviceWorker' in navigator) {
           window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js').catch((err) => console.warn('SW registration failed:', err));
