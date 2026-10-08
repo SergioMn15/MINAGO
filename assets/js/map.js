@@ -121,7 +121,7 @@ import { ref, onValue } from 'https://www.gstatic.com/firebasejs/12.19.0/firebas
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
-    attribution: '&copy; OpenStreetMap contributors'
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(map);
 
   const savedPublicRoute = sessionStorage.getItem('publicRouteSelection') || DEFAULT_ROUTE || 'Ruta Azul';
@@ -179,9 +179,9 @@ import { ref, onValue } from 'https://www.gstatic.com/firebasejs/12.19.0/firebas
     const unitCode = data.codigo_unidad || UNIT_CODE;
     const routeName = getRouteLabel(data.ruta_actual || busAssignedRoute || displayRoute || DEFAULT_ROUTE || 'Ruta Azul');
     const routeColor = data.color_ruta || routeCatalog[routeName]?.color || '#1d4ed8';
-    const timestamp = data.ultima_actualizacion || new Date().toISOString();
+    const timestamp = data.ultima_senal || data.ultima_actualizacion || new Date().toISOString();
     const formattedTime = formatTime(timestamp);
-    const sentido = data.sentido || sessionStorage.getItem('sentidoRuta') || 'Minatitlán - Colima';
+    const sentido = data.sentido || 'Minatitlán ➔ Colima';
 
     return `
       <div style="padding: 8px; font-size: 13px;">
@@ -226,10 +226,7 @@ import { ref, onValue } from 'https://www.gstatic.com/firebasejs/12.19.0/firebas
       marker.setOpacity(1);
       marker.bindPopup(getPopupHtml({
         codigo_unidad: key,
-        ruta_actual: data.ruta_actual || busAssignedRoute || displayRoute || DEFAULT_ROUTE || 'Ruta Azul',
-        color_ruta: data.color_ruta || routeCatalog[data.ruta_actual || busAssignedRoute || displayRoute || DEFAULT_ROUTE || 'Ruta Azul']?.color || '#1d4ed8',
-        ultima_actualizacion: data.ultima_actualizacion || new Date().toISOString(),
-        sentido: data.sentido || sessionStorage.getItem('sentidoRuta') || 'Minatitlán - Colima'
+        ...data
       }));
       return marker;
     }
@@ -242,10 +239,7 @@ import { ref, onValue } from 'https://www.gstatic.com/firebasejs/12.19.0/firebas
 
     marker.bindPopup(getPopupHtml({
       codigo_unidad: key,
-      ruta_actual: data.ruta_actual || busAssignedRoute || displayRoute || DEFAULT_ROUTE || 'Ruta Azul',
-      color_ruta: data.color_ruta || routeCatalog[data.ruta_actual || busAssignedRoute || displayRoute || DEFAULT_ROUTE || 'Ruta Azul']?.color || '#1d4ed8',
-      ultima_actualizacion: data.ultima_actualizacion || new Date().toISOString(),
-      sentido: data.sentido || sessionStorage.getItem('sentidoRuta') || 'Minatitlán - Colima'
+      ...data
     }));
 
     busMarkersByUnit[key] = marker;
@@ -375,18 +369,61 @@ import { ref, onValue } from 'https://www.gstatic.com/firebasejs/12.19.0/firebas
     });
   }
 
-  // Firebase emite el estado inicial y cada cambio sin polling ni recargas.
-  const unitRef = ref(window.viaminaDatabase, `unidades/${UNIT_CODE}`);
-  onValue(unitRef, (snapshot) => {
-    const data = snapshot.val();
-    if (data) {
-      updateInfo({ ...data, codigo_unidad: UNIT_CODE }, { skipCenter: false });
+  // Firebase emite el estado en tiempo real de TODAS las unidades activas simultáneamente
+  const unitsRef = ref(window.viaminaDatabase, 'unidades');
+  onValue(unitsRef, (snapshot) => {
+    const unitsData = snapshot.val() || {};
+    const activeUnitCodes = Object.keys(unitsData);
+    const now = Date.now();
+    let liveUnitsCount = 0;
+    let latestActiveUnitData = null;
+
+    activeUnitCodes.forEach((unitCode) => {
+      const data = { ...unitsData[unitCode], codigo_unidad: unitCode };
+      const latitud = Number(data.lat);
+      const longitud = Number(data.lng);
+      const timestamp = Number(data.ultima_senal) || now;
+      const diffMinutes = (now - timestamp) / 60000;
+
+      if (Number.isFinite(latitud) && Number.isFinite(longitud) && diffMinutes <= 5) {
+        liveUnitsCount++;
+        latestActiveUnitData = data;
+        lastKnownBusPosition = [latitud, longitud];
+
+        const marker = ensureBusMarker(latitud, longitud, unitCode, data);
+        if (marker) {
+          setBusVisibility(unitCode, true);
+        }
+      } else {
+        setBusVisibility(unitCode, false);
+      }
+    });
+
+    // Limpiar marcadores de unidades que ya no están en Firebase
+    Object.keys(busMarkersByUnit).forEach((existingUnitCode) => {
+      if (!unitsData[existingUnitCode]) {
+        removeBusMarker(existingUnitCode);
+      }
+    });
+
+    // Actualizar badges y estado general
+    if (liveUnitsCount > 0) {
+      setStatus(true, `${liveUnitsCount} unidad${liveUnitsCount > 1 ? 'es' : ''} en circulación`);
+      if (alertBanner) alertBanner.classList.add('hidden');
+
+      if (latestActiveUnitData) {
+        if (unitCodeBadge) unitCodeBadge.textContent = liveUnitsCount > 1 ? `${liveUnitsCount} en ruta` : latestActiveUnitData.codigo_unidad;
+        if (unitSentido) unitSentido.textContent = latestActiveUnitData.sentido || 'En circulación';
+        if (unitLastSignal) unitLastSignal.textContent = formatTime(latestActiveUnitData.ultima_senal);
+      }
     } else {
-      removeBusMarker(UNIT_CODE);
-      setStatus(false, 'Sin unidad activa');
+      setStatus(false, 'Sin unidades activas');
+      if (unitCodeBadge) unitCodeBadge.textContent = '--';
+      if (unitSentido) unitSentido.textContent = 'Sin servicio activo';
+      if (unitLastSignal) unitLastSignal.textContent = '--';
     }
   }, (error) => {
-    console.error('Error al escuchar ubicación en Firebase:', error);
+    console.error('Error al escuchar ubicaciones en Firebase:', error);
     setStatus(false, 'Sin conexión en tiempo real');
   });
 })();

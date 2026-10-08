@@ -1,1 +1,12 @@
+# Cache & IDE tools
 .aider*
+.continue
+.kombai
+.eucode
+.vscode/
+
+# OS metadata
+Thumbs.db
+Desktop.ini
+.DS_Store
+

@@ -190,23 +190,24 @@ function init3DMap() {
     style: {
       version: 8,
       sources: {
-        'carto-voyager': {
+        'osm-tiles': {
           type: 'raster',
           tiles: [
-            'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
-            'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+            'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'
           ],
           tileSize: 256,
-          attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }
       },
       layers: [
         {
-          id: 'carto-voyager-layer',
+          id: 'osm-tiles-layer',
           type: 'raster',
-          source: 'carto-voyager',
+          source: 'osm-tiles',
           minzoom: 0,
-          maxzoom: 20
+          maxzoom: 19
         }
       ]
     },
@@ -528,19 +529,29 @@ async function sendLocation({ latitude, longitude, accuracy, speed, heading }) {
   const timestamp = Date.now();
   driverState.isSending = true;
 
+  const activeRoute = elements.routeSelect?.value || sessionStorage.getItem('rutaActiva') || window.VIAMINA_CONFIG.DEFAULT_ROUTE || 'Ruta Azul';
+  const activeDirection = elements.directionSelect?.value || sessionStorage.getItem('sentidoRuta') || 'Minatitlán - Colima';
+  const formattedDirection = activeDirection.replace(' - ', ' ➔ ');
+  const isAzul = activeRoute.toLowerCase().includes('azul');
+  const routeColor = isAzul ? '#1d4ed8' : '#f59e0b';
+
   try {
     await set(ref(window.viaminaDatabase, `unidades/${driverState.unitCode}`), {
       lat: latitude,
       lng: longitude,
       velocidad: Number.isFinite(speed) ? speed : 0,
-      sentido: 'Minatitlán ➔ Colima',
+      rumbo: computedBearing,
+      ruta_actual: activeRoute,
+      sentido: formattedDirection,
+      color_ruta: routeColor,
+      codigo_unidad: driverState.unitCode,
       ultima_senal: timestamp
     });
 
     driverState.lastSentAt = Date.now();
     driverState.lastPosition = { latitude, longitude };
     updateDriverMetrics({ lat: latitude, lng: longitude, timestamp });
-    setMessage('Transmitiendo en vivo (Minatitlán ➔ Colima)');
+    setMessage(`Transmitiendo en vivo: ${activeRoute} (${formattedDirection})`);
     setStatus(true, 'Transmitiendo');
   } catch (error) {
     console.error('Error al enviar ubicación a Firebase:', error);
