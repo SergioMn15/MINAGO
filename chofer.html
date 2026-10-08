@@ -2,10 +2,14 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>MinaGo | Cabina de Navegación del Chofer</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" type="image/jpeg" href="assets/img/logo.jpg" />
+    <link rel="apple-touch-icon" href="assets/img/logo.jpg" />
+    <meta name="theme-color" content="#0d9488" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700;800&display=swap" />
     <!-- MapLibre GL JS para perspectiva 3D real (pitch y bearing/heading) -->
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
@@ -190,5 +194,12 @@
     <script src="assets/js/config.js"></script>
     <script type="module" src="assets/js/firebaseClient.js"></script>
     <script type="module" src="assets/js/driver.js"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').catch((err) => console.warn('SW registration failed:', err));
+        });
+      }
+    </script>
   </body>
 </html>

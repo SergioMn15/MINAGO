@@ -469,8 +469,39 @@ function toggleViewMode() {
 }
 
 // ==========================================
-// 5. ENVÍO DE UBICACIÓN A FIREBASE REALTIME DATABASE
+// 5. ENVÍO DE UBICACIÓN A FIREBASE REALTIME DATABASE (CON SOPORTE OFFLINE)
 // ==========================================
+
+function enqueueOfflinePosition(payload) {
+  try {
+    const queue = JSON.parse(localStorage.getItem('offline_gps_queue') || '[]');
+    queue.push(payload);
+    if (queue.length > 50) queue.shift();
+    localStorage.setItem('offline_gps_queue', JSON.stringify(queue));
+  } catch (err) {
+    console.warn('Error al guardar posición offline:', err);
+  }
+}
+
+async function flushOfflineQueue() {
+  const queueJson = localStorage.getItem('offline_gps_queue');
+  if (!queueJson) return;
+  try {
+    const queue = JSON.parse(queueJson);
+    if (!Array.isArray(queue) || queue.length === 0) return;
+
+    const latest = queue[queue.length - 1];
+    if (latest && latest.codigo_unidad && window.viaminaDatabase) {
+      await set(ref(window.viaminaDatabase, `unidades/${latest.codigo_unidad}`), latest);
+    }
+    localStorage.removeItem('offline_gps_queue');
+    setMessage('Conexión restablecida. Posiciones sincronizadas.');
+  } catch (err) {
+    console.error('Error al sincronizar cola offline:', err);
+  }
+}
+
+window.addEventListener('online', flushOfflineQueue);
 
 async function sendLocation({ latitude, longitude, accuracy, speed, heading }) {
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude) ||
@@ -535,18 +566,28 @@ async function sendLocation({ latitude, longitude, accuracy, speed, heading }) {
   const isAzul = activeRoute.toLowerCase().includes('azul');
   const routeColor = isAzul ? '#1d4ed8' : '#f59e0b';
 
+  const payload = {
+    lat: latitude,
+    lng: longitude,
+    velocidad: Number.isFinite(speed) ? speed : 0,
+    rumbo: computedBearing,
+    ruta_actual: activeRoute,
+    sentido: formattedDirection,
+    color_ruta: routeColor,
+    codigo_unidad: driverState.unitCode,
+    ultima_senal: timestamp
+  };
+
+  if (!navigator.onLine) {
+    enqueueOfflinePosition(payload);
+    setMessage('Sin señal celular. Guardando posición localmente…');
+    setStatus(false, 'Sin red');
+    driverState.isSending = false;
+    return;
+  }
+
   try {
-    await set(ref(window.viaminaDatabase, `unidades/${driverState.unitCode}`), {
-      lat: latitude,
-      lng: longitude,
-      velocidad: Number.isFinite(speed) ? speed : 0,
-      rumbo: computedBearing,
-      ruta_actual: activeRoute,
-      sentido: formattedDirection,
-      color_ruta: routeColor,
-      codigo_unidad: driverState.unitCode,
-      ultima_senal: timestamp
-    });
+    await set(ref(window.viaminaDatabase, `unidades/${driverState.unitCode}`), payload);
 
     driverState.lastSentAt = Date.now();
     driverState.lastPosition = { latitude, longitude };
@@ -555,7 +596,9 @@ async function sendLocation({ latitude, longitude, accuracy, speed, heading }) {
     setStatus(true, 'Transmitiendo');
   } catch (error) {
     console.error('Error al enviar ubicación a Firebase:', error);
-    setMessage('Fallo de conexión satelital. Reintentando…');
+    enqueueOfflinePosition(payload);
+    setMessage('Reintentando conexión… Guardado localmente.');
+    setStatus(false, 'Reintentando');
   } finally {
     driverState.isSending = false;
   }
