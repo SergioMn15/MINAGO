@@ -161,12 +161,45 @@ import { ref, onValue } from 'https://www.gstatic.com/firebasejs/12.19.0/firebas
     );
   }
 
-  const busIcon = L.icon({
-    iconUrl: './camion.webp',
-    iconSize: [46, 46],
-    iconAnchor: [23, 23],
-    popupAnchor: [0, -20]
-  });
+  const createBusIcon = (data = {}) => {
+    const routeName = data.ruta_actual || busAssignedRoute || displayRoute || DEFAULT_ROUTE || 'Ruta Azul';
+    const routeColor = data.color_ruta || routeCatalog[routeName]?.color || '#1d4ed8';
+
+    return L.divIcon({
+      className: 'public-bus-marker',
+      iconSize: [70, 70],
+      iconAnchor: [35, 35],
+      popupAnchor: [0, -32],
+      html: `
+        <div class="public-bus-puck" style="--bus-route-color:${escapeHtml(routeColor)};">
+          <div class="public-bus-beam"></div>
+          <div class="public-bus-halo"></div>
+          <div class="public-bus-body">
+            <div class="public-bus-arrow"></div>
+            <img src="camion.webp" alt="Unidad" />
+          </div>
+        </div>
+      `
+    });
+  };
+
+  const updateBusMarkerStyle = (marker, data = {}) => {
+    const element = marker.getElement?.();
+    if (!element) return;
+
+    const puck = element.querySelector('.public-bus-puck');
+    if (!puck) return;
+
+    const routeName = data.ruta_actual || busAssignedRoute || displayRoute || DEFAULT_ROUTE || 'Ruta Azul';
+    const routeColor = data.color_ruta || routeCatalog[routeName]?.color || '#1d4ed8';
+    puck.style.setProperty('--bus-route-color', routeColor);
+
+    const heading = Number(data.rumbo);
+    if (Number.isFinite(heading)) {
+      const body = element.querySelector('.public-bus-body');
+      if (body) body.style.transform = `rotate(${heading}deg)`;
+    }
+  };
 
   const busMarkersByUnit = {};
 
@@ -224,16 +257,18 @@ import { ref, onValue } from 'https://www.gstatic.com/firebasejs/12.19.0/firebas
     if (marker) {
       marker.setLatLng([latitud, longitud]);
       marker.setOpacity(1);
+      marker.setIcon(createBusIcon(data));
       marker.bindPopup(getPopupHtml({
         codigo_unidad: key,
         ...data
       }));
+      updateBusMarkerStyle(marker, data);
       return marker;
     }
 
     marker = L.marker([latitud, longitud], {
       title: `Unidad ${key}`,
-      icon: busIcon,
+      icon: createBusIcon(data),
       opacity: 1
     }).addTo(map);
 
@@ -241,6 +276,7 @@ import { ref, onValue } from 'https://www.gstatic.com/firebasejs/12.19.0/firebas
       codigo_unidad: key,
       ...data
     }));
+    updateBusMarkerStyle(marker, data);
 
     busMarkersByUnit[key] = marker;
     return marker;
