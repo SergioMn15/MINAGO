@@ -1025,11 +1025,11 @@ h1, h2, h3, p { margin: 0; }
   position: absolute;
   z-index: 900;
   top: 96px;
-  bottom: 18px;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
   left: var(--sidebar-panel-left);
   width: var(--sidebar-panel-width);
-  height: calc(100vh - 114px);
-  max-height: calc(100vh - 114px);
+  height: calc(100dvh - 114px - env(safe-area-inset-bottom, 0px));
+  max-height: calc(100dvh - 114px - env(safe-area-inset-bottom, 0px));
   min-height: 0;
   padding: 0;
   color: var(--text);
@@ -1096,12 +1096,15 @@ h1, h2, h3, p { margin: 0; }
 }
 
 .panel-body {
-  padding: 16px;
+  flex: 1;
+  min-height: 0;
+  padding: 16px 16px calc(28px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: 16px;
   overflow-y: auto;
   overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* 1. SECCIÓN DE RUTAS (Ruta Azul, Ruta Amarillo) */
@@ -1488,9 +1491,10 @@ h1, h2, h3, p { margin: 0; }
   .map-workspace { height: calc(100vh - 70px); }
   .public-app .map-panel { top: 70px; }
   .public-dashboard {
-    top: 80px;
-    height: calc(100vh - 92px);
-    max-height: calc(100vh - 92px);
+    top: 78px;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - 86px - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - 86px - env(safe-area-inset-bottom, 0px));
     right: auto;
   }
   .sidebar-toggle {
